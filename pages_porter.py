@@ -10,52 +10,24 @@ import global_utils
 _dict = global_utils.known_dict
 
 
-def download_items_list(categories:list, to_file:str):
+def download_items_list_arena(categories: list, to_file: str):
+    with open(to_file, 'w+', encoding='utf8') as F:
+        F.write(json.dumps(global_utils.arena_manager.get_items_in_categories(categories), ensure_ascii=False))
 
 
-
-def en_get_page_item_list():
-    cat_list = [
-        'items'
-    ]
-    p_list = []
-    for c in cat_list:
-        p_list = global_utils.huiji_manager.get_categories(c)
-
-    print('total pages:', len(p_list))
-    with open('H:\\gw2_2\\itemList.txt', 'w', encoding='utf8') as F:
-        F.write(json.dumps(p_list, ensure_ascii=False))
-
-
-def getenwikiPageItem():
-    with open('H:\\gw2_2\\itemList.txt', 'r', encoding='utf8') as F:
+def download_items_page_arena(items_list_txt_file: str):
+    with open(items_list_txt_file, 'r', encoding='utf8') as F:
         _List = json.load(F)
-    site = Site('wiki.guildwars2.com', path='/')
-
     for page in _List:
-        p = site.pages[page]
-        name = page
-        name = name.replace("/", '%2F')
-        name = name.replace(":", '%3A')
-        name = name.replace("*", '%2A')
-        name = name.replace("?", '%3F')
-        name = name.replace('"', '%22')
-        file = 'H:\\gw2_2\\wikiText\\en\\items\\' + name + '.wiki'
-        if not os.path.exists(file):
-            if p.exists:
-                text = p.text()
-                try:
-                    with open(file, 'w', encoding='utf8') as F:
-                        F.write(text)
-                    print(file + '.wiki')
-                except Exception:
-                    sleep(30)
-                    pass
-            else:
-                print('past:', file)
-        print('past2:', file)
+        p = global_utils.arena_manager.get_page(page)
+        page = global_utils.standardize_name(page)
+        file = os.path.join(global_utils.settings["local_wiki_root_path"], "en", "items", f"{page}.wiki")
+        if not p.exists:
+            continue
+        with open(file, 'w+', encoding='utf8') as F:
+            F.write(p.text())
 
-
+# TODO 下列任务未完成
 def getenwikiPageMountLisence():
     site = Site('wiki.guildwars2.com', path='/')
     cat_list = [
@@ -558,7 +530,7 @@ def checkTraitPage():
                 en_Text = E.read()
             _en_id = re.search(r'id\s\=\s([0-9]*)', en_Text)
             if _en_id:
-                _en_id = _en_id.group(1).replace(' ','')
+                _en_id = _en_id.group(1).replace(' ', '')
                 _en_id = _en_id.replace('\n', '')
                 _en_id = _en_id.replace('\r', '')
                 _en_id = _en_id.replace('\t', '')
@@ -567,8 +539,10 @@ def checkTraitPage():
                 hasMatch = True
         if not hasMatch:
             print('missing:', _id, data_dict['name'])
-        #else:
-            #print('found:', _id, data_dict['name'])
+        # else:
+        # print('found:', _id, data_dict['name'])
+
+
 # checkTraitPage()
 # getenwikiPage()
 # processWikipage()
