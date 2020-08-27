@@ -187,14 +187,8 @@ def standardize_page(content: str, name: str) -> str:
     pass
 
 
-# 将一个英文wiki界面名标准化至灰机wiki标准
-def standardize_name(src_name: str) -> str:
-    return os.path.split(src_name)[-1].replace('.wiki', '').replace("File:", "").replace('%22', '"'). \
-        replace('%2F', "/").replace('%3A', ":").replace('%3F', "?").replace('%2A', "*")
-
-
 def normal_save(content, name):
-    global_utils.huiji_manager.save_new_page(standardize_name(name), content)
+    global_utils.huiji_manager.save_new_page(global_utils.standardize_name(name), content)
 
 
 # 一般页面处理流程，包括了页面标准化和上传处理
@@ -204,12 +198,9 @@ def normal_pages_process(root: str, basic_handle=standardize_page, upload_handle
         upload_handle(temp_content, page_name)
 
 
-def process_pages() -> None:
-    normal_pages_process(global_utils.get_path(['wikiText', 'zh']), standardize_page, None)
-
-
 # 处理技能导航navbox相关
-def processPageSkillNavs(mode):
+def process_page_skill_navs(mode):
+
     def handle(content, name):
         nonlocal mode
         if mode == 'c':
@@ -229,7 +220,7 @@ def processPageSkillNavs(mode):
         else:
             print(content)
 
-    normal_pages_process(global_utils.get_path(['wikiText', 'zh', 'skill']), standardize_page, handle)
+    normal_pages_process(global_utils.get_path(['wikiText', 'zh', 'skill']), upload_handle=handle)
 
 
 # TODO 下列任务未完成

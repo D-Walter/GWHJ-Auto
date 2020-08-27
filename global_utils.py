@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from typing import Generator
 
 from media_wiki_manager import MediaWikiManager
@@ -7,7 +8,12 @@ from media_wiki_manager import MediaWikiManager
 with open("settings.json", 'r', encoding='utf8', newline='') as fs:
     settings = json.load(fs)
 
+if not os.path.exists(settings["logs_folder_path"]):
+    os.makedirs(settings["logs_folder_path"], 0x777)
+logs_file_full_path = os.path.join(settings["logs_folder_path"], settings["logs_file_name"])
+
 known_dict_path = os.path.join(settings['local_wiki_root_path'], 'dict.json')
+known_dict = {}
 if os.path.exists(known_dict_path):
     with open(known_dict_path, 'r', encoding='utf8',
               newline='') as F:
@@ -15,6 +21,14 @@ if os.path.exists(known_dict_path):
 
 huiji_manager: MediaWikiManager = MediaWikiManager(settings['huiji_account'], settings['huiji_password'],
                                                    settings['huiji_host'])
+arena_manager: MediaWikiManager = MediaWikiManager(settings['arena_account'], settings['arena_password'],
+                                                   settings['arena_host'])
+
+
+# 将一个英文wiki界面名标准化至灰机wiki标准
+def standardize_name(src_name: str) -> str:
+    return os.path.split(src_name)[-1].replace('.wiki', '').replace("File:", "").replace('%22', '"'). \
+        replace('%2F', "/").replace('%3A', ":").replace('%3F', "?").replace('%2A', "*")
 
 
 # 快速组装多个中间文件夹，并且以全局设置作为根目录
@@ -44,3 +58,10 @@ def get_wiki_files(root: str) -> Generator:
     for file_path in get_files_path(root, [], "WIKI"):
         with open(file_path, 'r', encoding='utf8', newline='') as fs:
             yield fs.read(), '.'.split(os.path.split(file_path)[-1])[0]
+
+
+def write_log(msg) -> None:
+    with open(logs_file_full_path, 'a', encoding='utf-8') as fs:
+        fs.write(
+            f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}]{msg}{os.linesep}")
+        fs.flush()
