@@ -2,26 +2,26 @@ import json
 import os
 import re
 from time import sleep
-
 from mwclient import Site
-
 import global_utils
 
 _dict = global_utils.known_dict
 
 
-def download_items_list_arena(categories: list, to_file: str):
+# 获取categories列表所示目录中所有的item，并且作为list写入to_file
+def arena_download_categories(categories: list, to_file: str):
     with open(to_file, 'w+', encoding='utf8') as F:
         F.write(json.dumps(global_utils.arena_manager.get_items_in_categories(categories), ensure_ascii=False))
 
 
-def download_items_page_arena(items_list_txt_file: str):
+# 根据items_list_txt_file文件内存储的列表，下载列表中所有页面，并且存入global_utils.settings["local_wiki_root_path"]/en/items文件夹
+# 页面名为文件名，wiki为扩展名
+def arena_download_all_pages(items_list_txt_file: str):
     with open(items_list_txt_file, 'r', encoding='utf8') as F:
         _List = json.load(F)
     for page in _List:
         p = global_utils.arena_manager.get_page(page)
-        page = global_utils.standardize_name(page)
-        file = os.path.join(global_utils.settings["local_wiki_root_path"], "en", "items", f"{page}.wiki")
+        file = os.path.join(global_utils.settings["local_wiki_root_path"], "en", "items", f"{global_utils.standardize_name(page.name)}.wiki")
         if not p.exists:
             continue
         with open(file, 'w+', encoding='utf8') as F:
