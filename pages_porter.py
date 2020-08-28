@@ -8,123 +8,63 @@ import global_utils
 _dict = global_utils.known_dict
 
 
-# 获取categories列表所示目录中所有的item，并且作为list写入to_file
-def arena_download_categories(categories: list, to_file: str):
-    with open(to_file, 'w+', encoding='utf8') as F:
-        F.write(json.dumps(global_utils.arena_manager.get_items_in_categories(categories), ensure_ascii=False))
+def arena_get_page_mounts(force_refresh=False) -> int:
+    return arena_get_all_pages_in_categories(['Griffon skins',
+                                        'Jackal skin',
+                                        'Jackal skins',
+                                        'Raptor skins',
+                                        'Roller Beetle skins',
+                                        'Skimmer skins',
+                                        'Skyscale skins',
+                                        'Springer skins',
+                                        'Warclaw skins',
+                                        'Gem Store mounts'], os.path.join("wikiText", "en", "mounts"),
+                                       force_refresh)
 
 
-# 根据items_list_txt_file文件内存储的列表，下载列表中所有页面，并且存入global_utils.settings["local_wiki_root_path"]/en/items文件夹
-# 页面名为文件名，wiki为扩展名
-def arena_download_all_pages(items_list_txt_file: str):
-    with open(items_list_txt_file, 'r', encoding='utf8') as F:
-        _List = json.load(F)
-    for page in _List:
+def arena_get_mount_licenses(force_refresh=False) -> int:
+    return arena_get_all_pages_in_categories(['Gem Store mount licenses'], os.path.join("wikiText", "en", "mount licenses"),
+                                       force_refresh)
+
+
+def arena_get_items(force_refresh=False) -> int:
+    return arena_get_all_pages_in_categories(["items"], os.path.join("wikiText", "en", "items"), force_refresh)
+
+
+def arena_get_pages_embedded_with(embedded_page_name: str, to_folder: str):
+    pages = global_utils.arena_manager.get_page(embedded_page_name).embeddedin(namespace=0)  # 15509
+    arena_download_all_pages(pages, os.path.join(global_utils.settings["local_wiki_root_path"], to_folder))
+
+
+# 将列表categories下所有页面下载到to_folder路径，请注意，to_folder路径是以global_utils.settings["local_wiki_root_path"]为根目录的相对路径
+# categories会被各自写入与to_folder最低级路径相同名的txt文件中。若文件已存在，则会尝试读取该文件，只有当force_refresh_list为True时才会忽视本地文件重新下载
+def arena_get_all_pages_in_categories(categories: list, to_folder: str, force_refresh_list: bool = False) -> int:
+    tgt_folder = os.path.join(global_utils.settings["local_wiki_root_path"], to_folder)
+    list_local_file = os.path.join(tgt_folder, f"{to_folder.split(os.pathsep)[-1]}.txt")
+    if force_refresh_list or not os.path.exists(list_local_file):
+        pages = global_utils.arena_manager.get_items_in_categories(categories)
+        with open(list_local_file, 'w+', encoding='utf8') as F:
+            F.write(json.dumps(pages, ensure_ascii=False))
+    else:
+        with open(list_local_file, 'r', encoding='utf8') as F:
+            pages = json.load(F)
+    return arena_download_all_pages(pages, to_folder)
+
+
+def arena_download_all_pages(pages: list, to_folder: str) -> int:
+    page_counter = 0
+    for page in pages:
         p = global_utils.arena_manager.get_page(page)
-        file = os.path.join(global_utils.settings["local_wiki_root_path"], "en", "items", f"{global_utils.standardize_name(page.name)}.wiki")
+        file = os.path.join(to_folder, f"{global_utils.standardize_name(page.name)}.wiki")
         if not p.exists:
             continue
         with open(file, 'w+', encoding='utf8') as F:
             F.write(p.text())
+        page_counter += 1
+    return page_counter
+
 
 # TODO 下列任务未完成
-def getenwikiPageMountLisence():
-    site = Site('wiki.guildwars2.com', path='/')
-    cat_list = [
-        'Gem Store mount licenses'
-    ]
-    for cat in cat_list:
-        category = site.categories[cat]
-        for page in category:
-            name = page.name
-            _wiki_page = site.pages[name]
-            text = _wiki_page.text()
-
-            name = name.replace("/", '%2F')
-            name = name.replace(":", '%3A')
-            name = name.replace("*", '%2A')
-            name = name.replace("?", '%3F')
-            name = name.replace('"', '%22')
-
-            file = 'H:\\gw2_2\\wikiText\\en\\mount licenses\\' + name + '.wiki'
-            if not os.path.exists(file):
-                try:
-                    with open(file, 'w', encoding='utf8') as F:
-                        F.write(text)
-                    print(file + '.wiki')
-                except Exception:
-                    sleep(30)
-                    pass
-            else:
-                print('past:', file)
-
-
-def getenwikiPageMount():
-    site = Site('wiki.guildwars2.com', path='/')
-    cat_list = [
-        'Griffon skins',
-        'Jackal skin',
-        'Jackal skins',
-        'Raptor skins',
-        'Roller Beetle skins',
-        'Skimmer skins',
-        'Skyscale skins',
-        'Springer skins',
-        'Warclaw skins',
-        'Gem Store mounts'
-    ]
-    for cat in cat_list:
-        category = site.categories[cat]
-        for page in category:
-            name = page.name
-            _wiki_page = site.pages[name]
-            text = _wiki_page.text()
-
-            name = name.replace("/", '%2F')
-            name = name.replace(":", '%3A')
-            name = name.replace("*", '%2A')
-            name = name.replace("?", '%3F')
-            name = name.replace('"', '%22')
-
-            file = 'H:\\gw2_2\\wikiText\\en\\mounts\\' + name + '.wiki'
-            if not os.path.exists(file):
-                try:
-                    with open(file, 'w', encoding='utf8') as F:
-                        F.write(text)
-                    print(file + '.wiki')
-                except Exception:
-                    sleep(30)
-                    pass
-
-
-def getenwikiPage():
-    site = Site('wiki.guildwars2.com', path='/')
-    page = site.pages['template:Trait infobox']  # 15509
-
-    e_pages = page.embeddedin(namespace=0)
-
-    for e in e_pages:
-        name = e.name
-        _page = site.pages[name]
-        text = _page.text()
-
-        name = name.replace("/", '%2F')
-        name = name.replace(":", '%3A')
-        name = name.replace("*", '%2A')
-        name = name.replace("?", '%3F')
-        name = name.replace('"', '%22')
-
-        file = 'H:\\gw2_2\\wikiText\\en\\traits\\' + name + '.wiki'
-        if not os.path.exists(file):
-            try:
-                with open(file, 'w', encoding='utf8') as F:
-                    F.write(text)
-                print(file + '.wiki')
-            except Exception:
-                sleep(30)
-                pass
-
-
 def checkTranslation(string, _dict):
     hasMatch = False
     transRes = string
