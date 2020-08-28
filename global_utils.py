@@ -12,12 +12,18 @@ if not os.path.exists(settings["logs_folder_path"]):
     os.makedirs(settings["logs_folder_path"], 0x777)
 logs_file_full_path = os.path.join(settings["logs_folder_path"], settings["logs_file_name"])
 
-known_dict_path = os.path.join(settings['local_wiki_root_path'], 'dict.json')
+known_dicts_folder = os.path.join(settings['local_wiki_root_path'], 'dicts')
 known_dict = {}
-if os.path.exists(known_dict_path):
-    with open(known_dict_path, 'r', encoding='utf8',
-              newline='') as F:
-        known_dict = json.load(F)
+if os.path.exists(known_dicts_folder):
+    for f in os.listdir(known_dicts_folder):
+        if os.path.isfile(f):
+            with open(known_dicts_folder, 'r', encoding='utf8',
+                      newline='') as F:
+                try:
+                    t_dict = json.load(F)
+                    known_dict.update(t_dict)
+                except:
+                    continue
 
 huiji_manager: MediaWikiManager = MediaWikiManager(settings['huiji_account'], settings['huiji_password'],
                                                    settings['huiji_host'])
