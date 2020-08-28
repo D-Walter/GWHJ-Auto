@@ -65,30 +65,6 @@ def arena_download_all_pages(pages: list, to_folder: str) -> int:
 
 
 # TODO 下列任务未完成
-def checkTranslation(string, _dict):
-    hasMatch = False
-    transRes = string
-    pet_enum = {
-        'Feline': '灵猫',
-        'Canine': '犬类',
-        'Porcine': '猪类',
-        'Pet attributes': '宠物属性',
-        'List of pet locations': '宠物地点列表',
-    }
-    for cat in _dict:
-        if string in _dict[cat]:
-            hasMatch = True
-            transRes = _dict[cat][string]
-        elif string + '[s]' in _dict[cat]:
-            hasMatch = True
-            transRes = _dict[cat][string + '[s]']
-        elif string in pet_enum:
-            hasMatch = True
-            transRes = pet_enum[string]
-
-    return hasMatch, transRes
-
-
 def replFamily(matched):
     text = matched.group(1)
     text = text.replace('\r\n', "")
@@ -155,7 +131,7 @@ def replRegion(matched):
         if _t[0] == ' ':
             l = len(_t)
             _t = _t[1:l]
-        hasMatch, trans = checkDict(_t, _dict)
+        hasMatch, trans = global_utils.look_up_known_dict(_t)
         res = res + trans
         if text.index(t) != len(text) - 1:
             res = res + ','
@@ -213,7 +189,7 @@ def transLink(matched):
     """
     翻译
     """
-    hasMatch, tRes = checkTranslation(s, _dict)
+    hasMatch, tRes = global_utils.look_up_known_dict(name)
 
     if hasMatch:
         res = tRes
@@ -228,7 +204,7 @@ def processWikipage():
     for p in _list:
         name = p.split('\\')
         name = name[-1].replace('.wiki', '')
-        hasMatch, name_zh = checkTranslation(name, _dict)
+        hasMatch, name_zh = global_utils.look_up_known_dict(name)
 
         name_zh = name_zh.replace('%2F', "/")
         name_zh = name_zh.replace('%3A', ":")
@@ -286,7 +262,7 @@ def getPetSkillPage():
                     sleep(30)
                     pass
             else:
-                hasMatch, res = checkTranslation(name, _dict)
+                hasMatch, res = global_utils.look_up_known_dict(name)
                 print("pass", file + '.wiki', res)
 
 

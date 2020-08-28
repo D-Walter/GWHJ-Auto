@@ -31,6 +31,21 @@ arena_manager: MediaWikiManager = MediaWikiManager(settings['arena_account'], se
                                                    settings['arena_host'])
 
 
+def look_up_known_dict(src_text: str, category_limitation: list = None):
+    if category_limitation is None or len(category_limitation) == 0:
+        category_limitation = list(known_dict.keys())
+    has_matched = False
+    result = None
+    for cat in category_limitation:
+        if src_text in known_dict[cat]:
+            has_matched = True
+            result = known_dict[cat][src_text]
+        elif f"{src_text}[s]" in known_dict[cat]:
+            has_matched = True
+            result = known_dict[cat][f"{src_text}[s]"]
+    return has_matched, result
+
+
 # 将一个英文wiki界面名标准化至灰机wiki标准
 def standardize_name(src_name: str) -> str:
     return os.path.split(src_name)[-1].replace('.wiki', '').replace("File:", "").replace('%22', '"'). \
