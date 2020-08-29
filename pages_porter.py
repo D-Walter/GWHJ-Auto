@@ -224,7 +224,7 @@ def processWikipage():
         string = '{{需要翻译}}' + string + '[[category:宠物]]'
 
         site = Site('gw2.huijiwiki.com')
-        site.login('报警机器人', '113323241')
+        site.login('报警机器人', '  ')
 
         _page = site.pages[name_zh]
         _page.save(string, summary='搬运', bot=True)
@@ -268,7 +268,7 @@ def getPetSkillPage():
 
 def checkPetSkill():
     h_site = Site('gw2.huijiwiki.com')
-    h_site.login('报警机器人', '113323241')
+    h_site.login('报警机器人', '  ')
 
     page = h_site.pages['template:infobox skill']  # 15509
 
@@ -311,7 +311,7 @@ def checkPetSkill():
 
 def getZH():
     h_site = Site('gw2.huijiwiki.com')
-    h_site.login('报警机器人', '113323241')
+    h_site.login('报警机器人', '  ')
     page = h_site.pages['template:infobox skill']  # 15509
     e_pages = page.embeddedin(namespace=0)
     pet = []
@@ -365,7 +365,7 @@ def getZH2():
 def checkPetSkill2():
     # 登陆网站
     h_site = Site('gw2.huijiwiki.com')
-    h_site.login('报警机器人', '113323241')
+    h_site.login('报警机器人', '  ')
 
     zh_list = []
     # 从网站上down下来的所有petSkill页面
@@ -420,7 +420,7 @@ def checkPetSkill2():
 
 def delete():
     h_site = Site('gw2.huijiwiki.com')
-    h_site.login('报警机器人', '113323241')
+    h_site.login('报警机器人', '  ')
     page = h_site.pages['template:infobox skill']  # 15509
     e_pages = page.embeddedin(namespace=0)
 

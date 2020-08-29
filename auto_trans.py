@@ -333,7 +333,7 @@ def processPageItems(mode):
     p_list = []
     getRawFile('H:\\gw2_2\\wikiText\\en\\items', p_list, 'WIKI')
     site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', '113323241')
+    site.login('报警机器人', ' ')
 
     set = {}
     override = ''
@@ -516,7 +516,7 @@ def updatePageItems(mode):
 
     getRawFile('H:\\gw2_2\\data\\v2_items', d_list, 'JSON')
     site = Site('gw2.huijiwiki.com', scheme='http')
-    site.login('报警机器人', '113323241')
+    site.login('报警机器人', ' ')
     for d in d_list:
         with open(d, 'r', encoding='utf8', newline='') as D:
             data = json.load(D)
@@ -614,7 +614,7 @@ def processPageMountLisence(mode):
     header_s = set()
     getRawFile('H:\\gw2_2\\wikiText\\en\\mount licenses', p_list, 'WIKI')
     site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', '113323241')
+    site.login('报警机器人', ' ')
 
     for w in p_list:
         with open(w, 'r', encoding='utf8', newline='') as W:
@@ -691,7 +691,7 @@ def processPageMount(mode):
     header_s = set()
     getRawFile('H:\\gw2_2\\wikiText\\en\\mounts', p_list, 'WIKI')
     site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', '113323241')
+    site.login('报警机器人', ' ')
 
     for w in p_list:
         with open(w, 'r', encoding='utf8', newline='') as W:
@@ -755,7 +755,7 @@ def processPageTraits(mode):
     header_s = set()
     getRawFile('H:\\gw2_2\\wikiText\\en\\traits', p_list, 'WIKI')
     site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', '113323241')
+    site.login('报警机器人', ' ')
 
     for w in p_list:
         with open(w, 'r', encoding='utf8', newline='') as W:
@@ -860,7 +860,7 @@ def processPageSkills(mode):
     header_s = set()
     getRawFile('H:\\gw2_2\\wikiText\\en\\skills', p_list, 'WIKI')
     site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', '113323241')
+    site.login('报警机器人', ' ')
     for w in p_list:
         with open(w, 'r', encoding='utf8', newline='') as W:
             string = W.read()
@@ -1375,7 +1375,7 @@ def skillPath():
         skill_name = data['name']
 
         site = Site('gw2.huijiwiki.com')
-        site.login('报警机器人', '113323241')
+        site.login('报警机器人', ' ')
 
         _target = site.pages['技能/' + skill_name_zh]
         _redirect = site.pages['Skills/' + str(data['id'])]
@@ -1449,7 +1449,7 @@ def createDict():
 
 def uploadsTrans():
     site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', '113323241')
+    site.login('报警机器人', ' ')
     res = '<table class="wikitable"><tr><th>分类</th><th>页面</th></tr>'
     j__path = 'H:\\gw2_2\\dict\\JSON\\'
     for c in _dict:
@@ -1521,7 +1521,7 @@ def uploadTrans2():
     s_res2 = json.dumps(s_res2, ensure_ascii=False)
 
     site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', '113323241')
+    site.login('报警机器人', ' ')
 
     i_page = site.pages['project:trans/Items/1']
     i_page.save(i_res1, summary="更新词典", contentformat='application/json', contentmodel='json')
@@ -1594,7 +1594,7 @@ def redirect():
         'Epilogue: Unbroken Lines': '尾声：牢固连结',
     }
     site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', '113323241')
+    site.login('报警机器人', ' ')
     for k in _list:
         # p = site.pages[k]
         # p.save('#重定向 [[' + '技能/' + _list[k] + ']]')
@@ -1613,7 +1613,7 @@ def redirect():
 # 维护脚本 - 宠物技能
 def checkPetSkill():
     site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', '113323241')
+    site.login('报警机器人', ' ')
     p_list = []
     getRawFile('H:\\gw2_2\\wikiText\\zh\\skill', p_list, 'WIKI')
 
@@ -1669,7 +1669,7 @@ def checkPetSkill():
 
 def checkPetSkill2():
     site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', '113323241')
+    site.login('报警机器人', ' ')
     p_list = []
     getRawFile('H:\\gw2_2\\wikiText\\zh\\skill', p_list, 'WIKI')
 
@@ -1743,7 +1743,7 @@ def checkPetSkill2():
 # 删除脚本
 def delete():
     h_site = Site('gw2.huijiwiki.com')
-    h_site.login('报警机器人', '113323241')
+    h_site.login('报警机器人', ' ')
     page = h_site.pages['template:infobox mount']  # 15509
     e_pages = page.embeddedin(namespace=0)
 
@@ -1766,7 +1766,7 @@ def ManualTrans():
         'Story characters',
     ]
     site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', '113323241')
+    site.login('报警机器人', ' ')
 
     for page in page_list:
         _page = site.pages[page]
@@ -1792,7 +1792,7 @@ def blog(mode):
     p_list = []
     getRawFile('H:\\gw2_2\\wikiText\\en\\items', p_list, 'WIKI')
     site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', '113323241')
+    site.login('报警机器人', ' ')
 
     w = 'H:\\gw2_2\\wikiText\\en\\items\\Studded Pants.wiki'
     with open(w, 'r', encoding='utf8', newline='') as W:
