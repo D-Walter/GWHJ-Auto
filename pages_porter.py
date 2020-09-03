@@ -3,6 +3,8 @@ import os
 import re
 from time import sleep
 from mwclient import Site
+from mwclient.page import Page
+
 import global_utils
 
 _dict = global_utils.known_dict
@@ -10,15 +12,15 @@ _dict = global_utils.known_dict
 
 def arena_get_page_mounts(force_refresh=False) -> (int, list):
     return arena_download_all_pages_in_categories(['Griffon skins',
-                                              'Jackal skin',
-                                              'Jackal skins',
-                                              'Raptor skins',
-                                              'Roller Beetle skins',
-                                              'Skimmer skins',
-                                              'Skyscale skins',
-                                              'Springer skins',
-                                              'Warclaw skins',
-                                              'Gem Store mounts'], os.path.join("wikiText", "en", "mounts"),
+                                                   'Jackal skin',
+                                                   'Jackal skins',
+                                                   'Raptor skins',
+                                                   'Roller Beetle skins',
+                                                   'Skimmer skins',
+                                                   'Skyscale skins',
+                                                   'Springer skins',
+                                                   'Warclaw skins',
+                                                   'Gem Store mounts'], os.path.join("wikiText", "en", "mounts"),
                                                   force_refresh)
 
 
@@ -43,17 +45,47 @@ def arena_get_pages_embedded_with(embedded_page_name: str, to_folder: str):
 def arena_download_all_pages_in_categories(categories: list, to_folder: str, force_refresh_list: bool = False) -> (
         int, list):
     tgt_folder = os.path.join(global_utils.settings["local_wiki_root_path"], to_folder)
-    list_local_file = os.path.join(tgt_folder, f"{to_folder.split(os.pathsep)[-1]}.txt")
+    list_local_file = os.path.join(tgt_folder, f"{to_folder.split(os.sep)[-1]}.txt")
+    pages_not_exist = []
     if force_refresh_list or not os.path.exists(list_local_file):
-        pages = global_utils.arena_manager.get_element_names_in_categories(categories)
         if not os.path.exists(tgt_folder):
             os.makedirs(tgt_folder)
         with open(list_local_file, 'w+', encoding='utf8') as F:
-            F.write(json.dumps(pages, ensure_ascii=False))
+            for page in global_utils.arena_manager.get_elements_in_categories_generator(categories):
+                F.write(f"{page.name}\n")
+                F.flush()
+                if not page.exists:
+                    pages_not_exist.append(page.name)
+                    continue
+                if not arena_download_single_page(page, tgt_folder):
+                    pages_not_exist.append(page.name)
+                    continue
     else:
         with open(list_local_file, 'r', encoding='utf8') as F:
-            pages = json.load(F)
-    return arena_download_all_pages(pages, tgt_folder)
+            while F.readable():
+                line_content = F.readline()
+                page = global_utils.arena_manager.get_page(line_content)
+                if not page.exists:
+                    pages_not_exist.append(page.name)
+                    continue
+                if not arena_download_single_page(page, tgt_folder):
+                    pages_not_exist.append(page.name)
+                    continue
+    # return arena_download_all_pages(pages, tgt_folder)
+# def arena_download_all_pages_in_categories(categories: list, to_folder: str, force_refresh_list: bool = False) -> (
+#         int, list):
+#     tgt_folder = os.path.join(global_utils.settings["local_wiki_root_path"], to_folder)
+#     list_local_file = os.path.join(tgt_folder, f"{to_folder.split(os.pathsep)[-1]}.txt")
+#     if force_refresh_list or not os.path.exists(list_local_file):
+#         pages = global_utils.arena_manager.get_element_names_in_categories(categories)
+#         if not os.path.exists(tgt_folder):
+#             os.makedirs(tgt_folder)
+#         with open(list_local_file, 'w+', encoding='utf8') as F:
+#             F.write(json.dumps(pages, ensure_ascii=False))
+#     else:
+#         with open(list_local_file, 'r', encoding='utf8') as F:
+#             pages = json.load(F)
+#     return arena_download_all_pages(pages, tgt_folder)
 
 
 def arena_download_all_pages(pages: list, to_folder: str) -> (int, list):
@@ -75,6 +107,17 @@ def arena_download_all_pages(pages: list, to_folder: str) -> (int, list):
         page_counter += 1
     return page_counter, pages_not_exist
 
+
+def arena_download_single_page(page: Page, to_folder: str) -> bool:
+    file = os.path.join(to_folder,
+                        global_utils.ascii_name(f"{global_utils.standardize_name(page.name)}.wiki"))
+    if not page.exists:
+        return False
+    if os.path.exists(file):
+        os.remove(file)
+    with open(file, 'w+', encoding='utf8') as f:
+        f.write(page.text())
+    return True
 # TODO 下列任务未完成
 # def replFamily(matched):
 #     text = matched.group(1)

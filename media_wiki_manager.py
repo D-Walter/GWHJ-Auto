@@ -13,8 +13,11 @@ class MediaWikiManager:
     __password: str = None
     __site_service: Site = None
     __operation_index: int = 0
-    __operation_index_limitation: int = 5
-    __operation_index_mutex = threading.Lock()
+    __operation_mutex = threading.Lock()
+    __access_limitation: int = 5
+    __access_limitation_counter = 0
+    __access_limitation_duration = 3
+    __access_mutex = threading.Lock()
 
     def get_element_names_in_categories(self, in_categories: list, sender="UNKNOWN"):
         temp_list = []
@@ -27,6 +30,24 @@ class MediaWikiManager:
 
     def get_element_names_in_category(self, in_category, sender="UNKNOWN") -> list or None:
         return self.__walk_category__(in_category, sender)
+
+    def get_elements_in_categories_generator(self, categories_names:list, sender="UNKNOWN"):
+        my_operation_index = self.__ask_for_operation_index__()
+        site_service = self.__get_site_service__(f'OPERATION[WALK] from USER[{sender}]', False)
+        c_list = categories_names[:]
+        while len(c_list) >= 1:
+            self.__ask_for_access__()
+            for obj in site_service.categories[c_list[0]]:
+                if isinstance(obj, listing.Category):
+                    c_name = obj.name
+                    c_name = c_name.replace('Category:', '')
+                    c_list.append(c_name)
+                elif isinstance(obj, page.Page):
+                    name = obj.name
+                    match = re.search(r'[tT]emplate:', name)
+                    if not match:
+                        yield obj
+            c_list.pop(0)
 
     def __walk_category__(self, category_name: str, sender: str = "None") -> None or list:
         my_operation_index = self.__ask_for_operation_index__()
@@ -74,20 +95,41 @@ class MediaWikiManager:
         self.__operate_page__('DELETE', page_name, reason=reason, sender=sender)
 
     def __get_cur_operation_index__(self) -> int:
-        self.__operation_index_mutex.acquire()
+        self.__operation_mutex.acquire()
         ret = self.__operation_index
-        self.__operation_index_mutex.release()
+        self.__operation_mutex.release()
         return ret
 
     def __ask_for_operation_index__(self) -> int:
-        self.__operation_index_mutex.acquire()
+        self.__operation_mutex.acquire()
         ret = self.__operation_index
         self.__operation_index += 1
-        self.__operation_index_mutex.release()
+        self.__operation_mutex.release()
         return ret
 
+    def __get_access_rate__(self) -> str:
+        self.__access_mutex.acquire()
+        ret = self.__access_limitation_counter / self.__access_limitation_duration
+        self.__access_mutex.release()
+        return f"{self.__access_limitation_counter}/{self.__access_limitation_duration}:{ret}"
+
+    def __ask_for_access__(self):
+        self.__access_mutex.acquire()
+        while (
+                self.__access_limitation_counter / self.__access_limitation_duration) >= self.__access_limitation:
+            sleep(0.02)
+        self.__access_limitation_counter += 1
+        self.__access_mutex.release()
+        threading.Timer(self.__access_limitation_duration, self.__minus_access_counter__).start()
+
+    def __minus_access_counter__(self):
+        self.__access_mutex.acquire()
+        self.__access_limitation_counter -= 1
+        self.__access_mutex.release()
+
     def __write_log__(self, message):
-        global_utils.write_log(f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}][{'ONLINE' if self.__site_service.logged_in else 'OFFLINE'}]{message}")
+        global_utils.write_log(
+            f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}][{'ONLINE' if self.__site_service.logged_in else 'OFFLINE'}]{message}")
 
     def __get_site_service__(self, sender='UNKNOWN', need_logged=True) -> Site:
         if need_logged and not self.__site_service.logged_in:
@@ -106,10 +148,12 @@ class MediaWikiManager:
 
         def get_page():
             nonlocal tgt_page, page_name
+            self.__ask_for_access__()
             tgt_page = site_service.pages[page_name]
 
         def create_page():
             nonlocal tgt_page, page_name
+            self.__ask_for_access__()
             tgt_page = site_service.pages[page_name]
             if tgt_page.exists:
                 return 'Duplicated page'
@@ -118,6 +162,7 @@ class MediaWikiManager:
 
         def delete_page():
             nonlocal tgt_page, page_name
+            self.__ask_for_access__()
             tgt_page = site_service.pages[page_name]
             if not tgt_page.exists:
                 return 'Page does not exist'

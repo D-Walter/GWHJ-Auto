@@ -45,14 +45,26 @@ def look_up_known_dict(src_text: str, category_limitation: list = None):
             result = known_dict[cat][f"{src_text}[s]"]
     return has_matched, result
 
-# 将一个英文wiki界面名标准化至灰机wiki标准
+
+__invalid_chars_list = ['"', "/", ":", "?", "*"]
+__local_signals_list = ['.wiki', "File:"]
+
+
+# 将一个可能带有ascii转义和本地或arenawiki标识的**路径**标准化为灰机wiki标准的**页面名**
 def standardize_name(src_name: str) -> str:
-    return os.path.split(src_name)[-1].replace('.wiki', '').replace("File:", "").replace('%22', '"'). \
-        replace('%2F', "/").replace('%3A', ":").replace('%3F', "?").replace('%2A', "*")
+    ret: str = os.path.split(src_name)[-1]
+    for c in __invalid_chars_list:
+        ret = ret.replace(f"%{hex(ord(c)).upper()[2:]}", c)
+    for s in __local_signals_list:
+        ret = ret.replace(s, "")
+    return ret
 
 
 def ascii_name(src_name: str) -> str:
-    return os.path.split(src_name)[-1].replace('"', '%22').replace("/",'%2F').replace(":",'%3A').replace("?",'%3F').replace("*",'%2A')
+    ret: str = os.path.split(src_name)[-1]
+    for c in __invalid_chars_list:
+        ret = ret.replace(c, f"%{hex(ord(c)).upper()[2:]}")
+    return ret
 
 
 # 快速组装多个中间文件夹，并且以全局设置作为根目录
