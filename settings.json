@@ -5,7 +5,7 @@
     "arena_host": "wiki.guildwars2.com",
     "arena_account": "",
     "arena_password": "",
-    "local_wiki_root_path": "A:\\Example_Directory",
+    "local_wiki_root_path": "D:\\ArenaWiki",
     "logs_folder_path": "Logs",
     "logs_file_name": "logs.txt"
 }
