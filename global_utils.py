@@ -45,11 +45,14 @@ def look_up_known_dict(src_text: str, category_limitation: list = None):
             result = known_dict[cat][f"{src_text}[s]"]
     return has_matched, result
 
-
 # 将一个英文wiki界面名标准化至灰机wiki标准
 def standardize_name(src_name: str) -> str:
     return os.path.split(src_name)[-1].replace('.wiki', '').replace("File:", "").replace('%22', '"'). \
         replace('%2F', "/").replace('%3A', ":").replace('%3F', "?").replace('%2A', "*")
+
+
+def ascii_name(src_name: str) -> str:
+    return os.path.split(src_name)[-1].replace('"', '%22').replace("/",'%2F').replace(":",'%3A').replace("?",'%3F').replace("*",'%2A')
 
 
 # 快速组装多个中间文件夹，并且以全局设置作为根目录

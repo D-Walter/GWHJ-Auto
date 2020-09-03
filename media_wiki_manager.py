@@ -16,16 +16,16 @@ class MediaWikiManager:
     __operation_index_limitation: int = 5
     __operation_index_mutex = threading.Lock()
 
-    def get_items_in_categories(self, in_categories: list, sender="UNKNOWN"):
+    def get_element_names_in_categories(self, in_categories: list, sender="UNKNOWN"):
         temp_list = []
         for c in in_categories:
-            cur_items = self.get_items_in_category(c, sender)
+            cur_items = self.get_element_names_in_category(c, sender)
             if cur_items is None:
                 raise Exception(f"Get items in categories failed on '{c}'")
             temp_list[0:0] = cur_items
         return temp_list
 
-    def get_items_in_category(self, in_category, sender="UNKNOWN") -> list or None:
+    def get_element_names_in_category(self, in_category, sender="UNKNOWN") -> list or None:
         return self.__walk_category__(in_category, sender)
 
     def __walk_category__(self, category_name: str, sender: str = "None") -> None or list:

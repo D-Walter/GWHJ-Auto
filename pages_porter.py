@@ -9,7 +9,7 @@ _dict = global_utils.known_dict
 
 
 def arena_get_page_mounts(force_refresh=False) -> (int, list):
-    return arena_get_all_pages_in_categories(['Griffon skins',
+    return arena_download_all_pages_in_categories(['Griffon skins',
                                               'Jackal skin',
                                               'Jackal skins',
                                               'Raptor skins',
@@ -19,17 +19,17 @@ def arena_get_page_mounts(force_refresh=False) -> (int, list):
                                               'Springer skins',
                                               'Warclaw skins',
                                               'Gem Store mounts'], os.path.join("wikiText", "en", "mounts"),
-                                             force_refresh)
+                                                  force_refresh)
 
 
 def arena_get_mount_licenses(force_refresh=False) -> (int, list):
-    return arena_get_all_pages_in_categories(['Gem Store mount licenses'],
-                                             os.path.join("wikiText", "en", "mount licenses"),
-                                             force_refresh)
+    return arena_download_all_pages_in_categories(['Gem Store mount licenses'],
+                                                  os.path.join("wikiText", "en", "mount licenses"),
+                                                  force_refresh)
 
 
 def arena_get_items(force_refresh=False) -> (int, list):
-    return arena_get_all_pages_in_categories(["items"], os.path.join("wikiText", "en", "items"), force_refresh)
+    return arena_download_all_pages_in_categories(["items"], os.path.join("wikiText", "en", "items"), force_refresh)
 
 
 def arena_get_pages_embedded_with(embedded_page_name: str, to_folder: str):
@@ -40,18 +40,20 @@ def arena_get_pages_embedded_with(embedded_page_name: str, to_folder: str):
 # 将列表categories下所有页面下载到to_folder路径，请注意，to_folder路径是以global_utils.settings["local_wiki_root_path"]为根目录的相对路径
 # categories会被各自写入与to_folder最低级路径相同名的txt文件中。若文件已存在，则会尝试读取该文件，只有当force_refresh_list为True时才会忽视本地文件重新下载
 # 返回一个(int,list)元组，分别对应成功页面数和失败页面名列表
-def arena_get_all_pages_in_categories(categories: list, to_folder: str, force_refresh_list: bool = False) -> (
+def arena_download_all_pages_in_categories(categories: list, to_folder: str, force_refresh_list: bool = False) -> (
         int, list):
     tgt_folder = os.path.join(global_utils.settings["local_wiki_root_path"], to_folder)
     list_local_file = os.path.join(tgt_folder, f"{to_folder.split(os.pathsep)[-1]}.txt")
     if force_refresh_list or not os.path.exists(list_local_file):
-        pages = global_utils.arena_manager.get_items_in_categories(categories)
+        pages = global_utils.arena_manager.get_element_names_in_categories(categories)
+        if not os.path.exists(tgt_folder):
+            os.makedirs(tgt_folder)
         with open(list_local_file, 'w+', encoding='utf8') as F:
             F.write(json.dumps(pages, ensure_ascii=False))
     else:
         with open(list_local_file, 'r', encoding='utf8') as F:
             pages = json.load(F)
-    return arena_download_all_pages(pages, to_folder)
+    return arena_download_all_pages(pages, tgt_folder)
 
 
 def arena_download_all_pages(pages: list, to_folder: str) -> (int, list):
@@ -61,7 +63,8 @@ def arena_download_all_pages(pages: list, to_folder: str) -> (int, list):
     pages_not_exist = []
     for page in pages:
         p = global_utils.arena_manager.get_page(page)
-        file = os.path.join(to_folder, f"{global_utils.standardize_name(p.name)}.wiki")
+        file = os.path.join(to_folder, global_utils.ascii_name(f"{global_utils.standardize_name(p.name)}.wiki"))
+        print(file)
         if not p.exists:
             pages_not_exist.append(p.name)
             continue
