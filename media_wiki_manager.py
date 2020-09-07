@@ -3,6 +3,8 @@ import re
 import threading
 import time
 from time import sleep
+from typing import Generator
+
 from mwclient import Site, listing, page
 from mwclient.page import Page
 import global_utils
@@ -19,25 +21,19 @@ class MediaWikiManager:
     __access_limitation_duration = 3
     __access_mutex = threading.Lock()
 
-    def get_element_names_in_categories(self, in_categories: list, sender="UNKNOWN"):
-        temp_list = []
-        for c in in_categories:
-            cur_items = self.get_element_names_in_category(c, sender)
-            if cur_items is None:
-                raise Exception(f"Get items in categories failed on '{c}'")
-            temp_list[0:0] = cur_items
-        return temp_list
-
-    def get_element_names_in_category(self, in_category, sender="UNKNOWN") -> list or None:
-        return self.__walk_category__(in_category, sender)
-
-    def get_elements_in_categories_generator(self, categories_names:list, sender="UNKNOWN"):
+    def get_elements_in_categories(self, categories_names: list, sender="UNKNOWN") -> Generator:
         my_operation_index = self.__ask_for_operation_index__()
-        site_service = self.__get_site_service__(f'OPERATION[WALK] from USER[{sender}]', False)
+        site_service = self.__get_site_service__(f'OPERATION[ERGODIC-CAT] from USER[{sender}]', False)
         c_list = categories_names[:]
         while len(c_list) >= 1:
             self.__ask_for_access__()
-            for obj in site_service.categories[c_list[0]]:
+            operation_details_text = f"OPERATION[GET] to CATEGORY[{c_list[0]}] from USER[{sender}](OI[{my_operation_index}])"
+            try:
+                category_pointer = site_service.categories[c_list[0]]
+            except Exception as e:
+                self.__write_log__(f"{operation_details_text} failed" + os.linesep + str(e))
+                continue
+            for obj in category_pointer:
                 if isinstance(obj, listing.Category):
                     c_name = obj.name
                     c_name = c_name.replace('Category:', '')
@@ -48,42 +44,6 @@ class MediaWikiManager:
                     if not match:
                         yield obj
             c_list.pop(0)
-
-    def __walk_category__(self, category_name: str, sender: str = "None") -> None or list:
-        my_operation_index = self.__ask_for_operation_index__()
-        site_service = self.__get_site_service__(f'OPERATION[WALK] from USER[{sender}]', False)
-        ret = None
-
-        def __walk_category_rcr__(_category_name=category_name, c_list=[]) -> None:
-            nonlocal ret, site_service
-            temp_items = []
-            for obj in site_service.categories[_category_name]:
-                if isinstance(obj, listing.Category):
-                    c_name = obj.name
-                    c_name = c_name.replace('Category:', '')
-                    __walk_category_rcr__(c_name, c_list)
-                elif isinstance(obj, page.Page):
-                    name = obj.name
-                    if name not in c_list:
-                        match = re.search(r'[tT]emplate:', name)
-                        if not match:
-                            temp_items.append(name)
-                            print('add page:', name)
-            c_list[0:0] = temp_items
-            ret = c_list
-
-        operation_details_text = f"OPERATION[WALK] to CATEGORY[{category_name}] from USER[{sender}](OI[{my_operation_index}])"
-        result = MediaWikiManager.__try_doing__(__walk_category_rcr__,
-                                                lambda e, c: self.__write_log__(
-                                                    f"{operation_details_text} failed, this is the {c}th failure(s)"
-                                                    + os.linesep + e))
-        if result is None:
-            self.__write_log__(
-                f"{operation_details_text} completed")
-        else:
-            self.__write_log__(
-                f"{operation_details_text} failed[{result}]")
-        return ret
 
     def get_page(self, page_name: str, sender="UNKNOWN") -> Page or None:
         return self.__operate_page__('GET', page_name, sender=sender)

@@ -32,7 +32,9 @@ arena_manager: MediaWikiManager = MediaWikiManager(settings['arena_account'], se
 
 
 def look_up_known_dict(src_text: str, category_limitation: list = None):
-    if category_limitation is None or len(category_limitation) == 0:
+    if category_limitation is None:
+        category_limitation = list(known_dict.keys())
+    elif len(category_limitation) == 0:
         category_limitation = list(known_dict.keys())
     has_matched = False
     result = None
@@ -43,6 +45,9 @@ def look_up_known_dict(src_text: str, category_limitation: list = None):
         elif f"{src_text}[s]" in known_dict[cat]:
             has_matched = True
             result = known_dict[cat][f"{src_text}[s]"]
+        elif f"{src_text} —Acht" in known_dict[cat]:
+            has_matched = True
+            result = known_dict[cat][f"{src_text} —Acht"]
     return has_matched, result
 
 
