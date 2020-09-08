@@ -184,11 +184,10 @@ def standardize_page(content: str, name: str) -> str:
     for p_string, rep_func in repl_dict:
         content = re.sub(p_string, rep_func, content)
     return content
-    pass
 
 
 def normal_save(content, name):
-    global_utils.huiji_manager.save_new_page(global_utils.standardize_name(name), content)
+    global_utils.huiji_manager.save_new_page(global_utils.get_standardized_name(name), content)
 
 
 # 一般页面处理流程，包括了页面标准化和上传处理
@@ -200,7 +199,6 @@ def normal_pages_process(root: str, basic_handle=standardize_page, upload_handle
 
 # 处理技能导航navbox相关
 def process_page_skill_navs(mode):
-
     def handle(content, name):
         nonlocal mode
         if mode == 'c':
@@ -219,11 +217,55 @@ def process_page_skill_navs(mode):
             global_utils.huiji_manager.delete_page(name)
         else:
             print(content)
-
     normal_pages_process(global_utils.get_path(['wikiText', 'zh', 'skill']), upload_handle=handle)
 
 
-# TODO 下列任务未完成
+def replace_family(matched):
+    text = matched.group(1)
+    text = text.replace('\r\n', "")
+    trans = {
+        'canine': '犬类',
+        'bear': '熊',
+        'armored fish': '装甲鱼',
+        'moa': '陆行鸟',
+        'spider': '蜘蛛',
+        'jellyfish': '水母',
+        'porcine': '猪类',
+        'bristleback': '钢背蜥',
+        'devourer': '噬蝎',
+        'feline': '灵猫',
+        'bird': '鸟类',
+        'wyvern': '翼龙',
+        'fanged iboga': '尖牙伊波茄',
+        'drake': '龙蜥',
+        'jacaranda': '蓝花楹',
+        'rock gazelle': '岩石羚羊',
+        'shark': '鲨鱼',
+        'smokescale': '雾鳞蜥',
+    }
+    res = 'family = ' + text + '\n| family_zh = ' + trans[text.lower()] + '\n'
+    return res
+
+
+def replace_region(matched):
+    text = matched.group(1)
+    text = text.replace('\r', '')
+    text = text.split(',')
+    # print('region matched:', text)
+    res = ""
+    for t in text:
+        _t = t
+        if _t[0] == ' ':
+            l = len(_t)
+            _t = _t[1:l]
+        hasMatch, trans = global_utils.look_up_known_dict(_t)
+        res = f"region = {trans}"
+        if text.index(t) != len(text) - 1:
+            res = f"{res},"
+    # print('region transed:', res)
+    return res
+
+
 def replace_description(matched):
     _text = matched.group(1)
     _text = re.sub(r'{{.*}}', '', _text)
@@ -266,70 +308,7 @@ def translate_inner_links(string, _dict):
     return res
 
 
-def process_page(page_text: str):
-    name = p.split('\\')
-    name = name[-1].replace('.wiki', '')
-    hasMatch, name_zh = global_utils.look_up_known_dict(name)
-
-    name_zh = name_zh.replace('%2F', "/")
-    name_zh = name_zh.replace('%3A', ":")
-    name_zh = name_zh.replace('%2A', "*")
-    name_zh = name_zh.replace('%3F', "?")
-    name_zh = name_zh.replace('%22', '"')
-
-    with open(p, 'r', encoding='utf8', newline='') as W:
-        string = W.read()
-    # 处理 infobox
-    string = infobox(string, name)
-    # 处理链接
-    string = wikiLinks(string, _dict)
-    # 处理h2、h3、h4
-    string = headers(string)
-
-    string = '{{需要翻译}}' + string + '[[category:宠物]]'
-
-    site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', '  ')
-
-    _page = site.pages[name_zh]
-    _page.save(string, summary='搬运', bot=True)
-
-    print(name, name_zh)
-
-def getPetSkillPage():
-    site = Site('wiki.guildwars2.com', path='/')
-    page = site.pages['template:Skill infobox']  # 15509
-
-    e_pages = page.embeddedin(namespace=0)
-    count = 0
-    hit_count = 0
-    for e in e_pages:
-        name = e.name
-        _page = site.pages[name]
-        text = _page.text()
-        match = re.search(r'pet-family\s\=\s', text)
-        if match:
-
-            name = name.replace("/", '%2F')
-            name = name.replace(":", '%3A')
-            name = name.replace("*", '%2A')
-            name = name.replace("?", '%3F')
-            name = name.replace('"', '%22')
-
-            file = 'H:\\gw2_2\\wikiText\\en\\petSkill\\' + name + '.wiki'
-            if not os.path.exists(file):
-                try:
-                    with open(file, 'w', encoding='utf8') as sF:
-                        sF.write(text)
-                    print(file + '.wiki')
-                except Exception:
-                    sleep(30)
-                    pass
-            else:
-                hasMatch, res = global_utils.look_up_known_dict(name)
-                print("pass", file + '.wiki', res)
-
-
+# TODO 下列任务未完成
 def checkPetSkill():
     h_site = Site('gw2.huijiwiki.com')
     h_site.login('报警机器人', '  ')
@@ -507,55 +486,10 @@ def checkTraitPage():
                 hasMatch = True
         if not hasMatch:
             print('missing:', _id, data_dict['name'])
-else:
-print('found:', _id, data_dict['name'])
+        else:
+        print('found:', _id, data_dict['name'])
 
 
-
-def replace_family(matched):
-    text = matched.group(1)
-    text = text.replace('\r\n', "")
-    trans = {
-        'canine': '犬类',
-        'bear': '熊',
-        'armored fish': '装甲鱼',
-        'moa': '陆行鸟',
-        'spider': '蜘蛛',
-        'jellyfish': '水母',
-        'porcine': '猪类',
-        'bristleback': '钢背蜥',
-        'devourer': '噬蝎',
-        'feline': '灵猫',
-        'bird': '鸟类',
-        'wyvern': '翼龙',
-        'fanged iboga': '尖牙伊波茄',
-        'drake': '龙蜥',
-        'jacaranda': '蓝花楹',
-        'rock gazelle': '岩石羚羊',
-        'shark': '鲨鱼',
-        'smokescale': '雾鳞蜥',
-    }
-    res = 'family = ' + text + '\n| family_zh = ' + trans[text.lower()] + '\n'
-    return res
-
-
-def replace_region(matched):
-    text = matched.group(1)
-    text = text.replace('\r', '')
-    text = text.split(',')
-    # print('region matched:', text)
-    res = ""
-    for t in text:
-        _t = t
-        if _t[0] == ' ':
-            l = len(_t)
-            _t = _t[1:l]
-        hasMatch, trans = global_utils.look_up_known_dict(_t)
-        res = f"region = {trans}"
-        if text.index(t) != len(text) - 1:
-            res = f"{res},"
-    # print('region transed:', res)
-    return res
 
 # 处理item（物品，包括一部分皮肤）
 def preprocessPageItems():

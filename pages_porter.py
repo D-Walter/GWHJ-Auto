@@ -1,6 +1,17 @@
 import os
 from mwclient.page import Page
 import global_utils
+import re
+
+
+def arena_get_pet_skills_pages(to_folder: str):
+    list_page = global_utils.arena_manager.get_page('template:Skill infobox')
+    for e in list_page.embeddedin(namespace=0):
+        page_pointer = global_utils.arena_manager.get_page(e.name)
+        text = page_pointer.text()
+        match = re.search(r'pet-family\s=\s', text)
+        if match:
+            arena_download_single_page(e, os.path.join(global_utils.settings["local_wiki_root_path"], to_folder))
 
 
 def arena_get_page_mounts(force_refresh=False) -> (int, list):
@@ -73,7 +84,7 @@ def arena_download_all_pages(pages: list, to_folder: str) -> (int, list):
     pages_not_exist = []
     for page in pages:
         p = global_utils.arena_manager.get_page(page)
-        file = os.path.join(to_folder, global_utils.ascii_name(f"{global_utils.standardize_name(p.name)}.wiki"))
+        file = os.path.join(to_folder, global_utils.get_ascii_name(f"{global_utils.get_standardized_name(p.name)}.wiki"))
         print(file)
         if not p.exists:
             pages_not_exist.append(p.name)
@@ -88,9 +99,12 @@ def arena_download_all_pages(pages: list, to_folder: str) -> (int, list):
 
 def arena_download_single_page(page: Page, to_folder: str) -> bool:
     file = os.path.join(to_folder,
-                        global_utils.ascii_name(f"{global_utils.standardize_name(page.name)}.wiki"))
+                        global_utils.get_ascii_name(f"{global_utils.get_standardized_name(page.name)}.wiki"))
+    print(file)
     if not page.exists:
         return False
+    if not os.path.exists(to_folder):
+        os.makedirs(to_folder)
     if os.path.exists(file):
         os.remove(file)
     with open(file, 'w+', encoding='utf8') as f:
