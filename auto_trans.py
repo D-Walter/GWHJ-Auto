@@ -348,62 +348,19 @@ def update_pets_skills_local():
                         if zh_id == en_id:
                             en_name = global_utils.get_standardized_name(en_file)
                             zh_content = re.sub(r'{{infobox skill', '{{infobox skill\n| name = ' + en_name, zh_content)
+
+
+def get_pets_skills_from_huiji():
+    for e in global_utils.huiji_manager.get_page('template:infobox skill').embeddedin(namespace=0):
+        e_page = global_utils.huiji_manager.get_page(e.name)
+        e_content = e_page.text()
+        if re.search(r'pet-family\s=\s', e_content):
+            file = global_utils.get_path(['wikiText','zh','petSkill',f'{global_utils.get_ascii_name(e.name)}.wiki'])
+            if not os.path.exists(file):
+                with open(file, 'w', encoding='utf8') as fs:
+                    fs.write(e_content)
+                print(file + '.wiki')
 # TODO 下列任务未完成
-
-
-def getZH():
-    h_site = Site('gw2.huijiwiki.com')
-    h_site.login('报警机器人', '  ')
-    page = h_site.pages['template:infobox skill']  # 15509
-    e_pages = page.embeddedin(namespace=0)
-    pet = []
-    for e in e_pages:
-        e_page = h_site.pages[e.name]
-        name = e.name
-        e_text = e_page.text()
-        match = re.search(r'pet-family\s\=\s', e_text)
-        if match:
-            name = name.replace("/", '%2F')
-            name = name.replace(":", '%3A')
-            name = name.replace("*", '%2A')
-            name = name.replace("?", '%3F')
-            name = name.replace('"', '%22')
-
-            file = 'H:\\gw2_2\\wikiText\\zh\\petSkill\\' + name + '.wiki'
-            if not os.path.exists(file):
-                try:
-                    with open(file, 'w', encoding='utf8') as sF:
-                        sF.write(e_text)
-                    print(file + '.wiki')
-                except Exception:
-                    sleep(30)
-                    pass
-
-
-def getZH2():
-    _list = []
-    getRawFile('H:\\gw2_2\\wikiText\\zh\\skill\\', _list, 'WIKI')
-
-    for e in _list:
-        with open(e, 'r', encoding='utf8', newline='') as W:
-            string = W.read()
-
-        match = re.search(r'pet-family\s\=\s', string)
-        if match:
-            name = e.split('\\')
-            name = name[-1].replace('.wiki', '')
-
-            file = 'H:\\gw2_2\\wikiText\\zh\\petSkillOld\\' + name + '.wiki'
-            if not os.path.exists(file):
-                try:
-                    with open(file, 'w', encoding='utf8') as sF:
-                        sF.write(string)
-                    print(file + '.wiki')
-                except Exception:
-                    sleep(30)
-                    pass
-
-
 
 
 def checkTraitPage():
@@ -447,7 +404,7 @@ def preprocessPageItems():
         with open(w, 'r', encoding='utf8', newline='') as W:
             string = W.read()
         subcategory = ''
-        subcategory_m = re.search('\{\{([\w]+) infobox', string)
+        subcategory_m = re.search('{{([\w]+) infobox', string)
         if subcategory_m:
             subcategory = subcategory_m.group(1)
 
@@ -459,23 +416,18 @@ def preprocessPageItems():
 
 
 # 通用，在arena的wiki页面中寻找【有效】id
-def findID(_string):
+def arena_find_id(arena_content):
     p = 0
-    p2 = 1
-    match1 = re.search(r'(\n}})', _string, re.X)
-    if match1 is not None:
-        p = match1.span(1)
+    match = re.search(r'(\n}})', arena_content, re.X)
+    if match is not None:
+        p = match.span(1)
         p = p[0]
-
-    match2 = re.search(r'\| id\s+=([\s0-9,]*)', _string)
-    if match2 is not None:
-        p2 = match2.span(1)
+    match = re.search(r'\| id\s+=([\s0-9,]*)', arena_content)
+    if match is not None:
+        p2 = match.span(1)
         p2 = p2[0]
-
         if p > p2:
-            # print("found", match2.group(1))
-            return True, match2.group(1)
-
+            return True, match.group(1)
         else:
             return False, 'fffff'
     else:
@@ -483,25 +435,29 @@ def findID(_string):
 
 
 # 处理arena页面中物品相关
-def itemsProcessString(_string, w, data_dict, _id, hasID=True):
-    string = wikiLinks3(_string, _dict)
+def process_items_content(_string, w, data_dict, _id, hasID=True):
+    string = wikiLinks3(_string)
     # 处理h2、h3、h4
-    string = re.sub(r'\=\=[\s]*Acquisition[\s]*\=\=', '== 获取方法 ==', string)
-    string = re.sub(r'\=\=[\s]*Contents[\s]*\=\=', '== 包含物品 ==', string)
-    string = re.sub(r'\=\=\=[\s]*Contained in[\s]*\=\=\=', '== 包含于 ==', string)
-    string = re.sub(r'\=\=\=[\s]*Gathered from[\s]*\=\=\=', '== 收集自 ==', string)
-    string = re.sub(r'\=\=\=[\s]*Dropped by[\s]*\=\=\=', '== 掉落自 ==', string)
-    string = re.sub(r'\=\=\=[\s]*[[Map Bonus Reward]][\s]*\=\=\=', '== [[地图奖励]] ==', string)
-    string = re.sub(r'\=\=[\s]*Used in[\s]*\=\=', '== 用途 ==', string)
-    string = re.sub(r'\=\=[\s]*Currency for[\s]*\=\=', '== 货币兑换 ==', string)
-    string = re.sub(r'\=\=[\s]*Trivia[\s]*\=\=', '== 趣闻 ==', string)
-    string = re.sub(r'\=\=[\s]*Weapon variants[\s]*\=\=', '== 相关武器 ==', string)
-    string = re.sub(r'\=\=[\s]*Available prefixes[\s]*\=\=', '== 属性前缀 ==', string)
-    string = re.sub(r'\=\=[\s]*Salvage results[\s]*\=\=', '== 拆解 ==', string)
-    string = re.sub(r'\=\=[\s]*Notes[\s]*\=\=', '== 说明 ==', string)
-    string = re.sub(r'\=\=[\s]*Salvages into[\s]*\=\=', '== 拆解 ==', string)
-    string = re.sub(r'\=\=[\s]*See also[\s]*\=\=', '== 另见 ==', string)
-    string = re.sub(r'\=\=[\s]*Variants[\s]*\=\=', '== 衍生 ==', string)
+    _repl_dict = [
+        [r'==[\s]*Acquisition[\s]*==', '== 获取方法 =='],
+        [r'==[\s]*Contents[\s]*==', '== 包含物品 =='],
+        [r'===[\s]*Contained in[\s]*===', '== 包含于 =='],
+        [r'===[\s]*Gathered from[\s]*===', '== 收集自 =='],
+        [r'===[\s]*Dropped by[\s]*===', '== 掉落自 =='],
+        [r'===[\s]*\[\[Map Bonus Reward]][\s]*===', '== [[地图奖励]] =='],
+        [r'==[\s]*Used in[\s]*==', '== 用途 =='],
+        [r'==[\s]*Currency for[\s]*==', '== 货币兑换 =='],
+        [r'==[\s]*Trivia[\s]*==', '== 趣闻 =='],
+        [r'==[\s]*Weapon variants[\s]*==', '== 相关武器 =='],
+        [r'==[\s]*Available prefixes[\s]*==', '== 属性前缀 =='],
+        [r'==[\s]*Salvage results[\s]*==', '== 拆解 =='],
+        [r'==[\s]*Notes[\s]*==', '== 说明 =='],
+        [r'==[\s]*Salvages into[\s]*==', '== 拆解 =='],
+        [r'==[\s]*See also[\s]*==', '== 另见 =='],
+        [r'==[\s]*Variants[\s]*==', '== 衍生 =='],
+    ]
+    for r in repl_dict:
+        string = re.sub(r[0], r[1], string)
 
     # 处理 infobox
     string, name, name_s, hasBracket, bracket = infoboxItems(string, w, data_dict, _id, hasID)
@@ -552,22 +508,21 @@ def processPageItems(mode):
     __count1 = 0
     __count2 = 0
     __count3 = 0
-    for w in p_list:
-        with open(w, 'r', encoding='utf8', newline='') as W:
-            _string = W.read()
+    for l_file in global_utils.get_wiki_files(global_utils.get_path(["wikiText","en","items"])):
+        with open(l_file, 'r', encoding='utf8', newline='') as fs:
+            content = fs.read()
         # 移除注释
-        _string = re.sub(r'<!--(.*)-->', '', _string)
+        content = re.sub(r'<!--(.*)-->', '', content)
 
         # get subcategory
-        subcategory = ''
-        subcategory_m = re.search(r'{{([\w\s]+) infobox', _string)
-        if subcategory_m:
-            subcategory = subcategory_m.group(1)
+        subcategory = re.search(r'{{([\w\s]+) infobox', content)
+        if subcategory:
+            subcategory = subcategory.group(1)
 
         # id
-        id_match, matched_id = findID(_string)
+        id_match, matched_id = arena_find_id(content)
         # isHistorical
-        historical = re.search(r'\| status = historical', _string)
+        is_historical = re.search(r'\| status = historical', content) is not None
 
         _items = [
             "item",
@@ -585,26 +540,23 @@ def processPageItems(mode):
         ]
         if subcategory.lower() in _items:
             data_dict = {}
-            # 历史物品
-            if historical is None:
+            # 不是历史物品
+            if not is_historical:
                 # 有id
                 if id_match:
-                    _ids = matched_id.replace(' ', '')
-                    _ids = _ids.replace('\n', '')
-                    _ids = _ids.replace('\r', '')
-                    _ids = _ids.replace('\t', '')
+                    _ids = matched_id.replace(' ', '').replace('\n', '').replace('\r', '').replace('\t', '')
                     # 可能有多个id
                     _ids = _ids.split(',')
                     for _id in _ids:
                         if _id != '':
-                            file = 'H:\\gw2_2\\data\\v2_items\\v2_items_' + str(_id) + '.json'
-                            if os.path.exists(file):
-                                with open(file, 'r', encoding='utf8', newline='') as D:
-                                    data_dict = json.load(D)
+                            js_file = global_utils.get_path(["data","v2_items",f"v2_items_{str(_id)}.json"])
+                            if os.path.exists(js_file):
+                                with open(js_file, 'r', encoding='utf8', newline='') as fs:
+                                    data_dict = json.load(fs)
 
-                            string = _string
+                            string = content
                             # 处理链接
-                            string, name, name_s, hasBracket, bracket = itemsProcessString(string, w, data_dict, _id)
+                            string, name, name_s, hasBracket, bracket = process_items_content(string, l_file, data_dict, _id)
 
                             if 'name_zh' in data_dict:
                                 pageName = data_dict['name_zh']
@@ -624,7 +576,7 @@ def processPageItems(mode):
                                 pass
                                 # mountPage.save(string, summary='新坐骑领养证页面', bot=True)
                             elif mode == 'l':
-                                new_name = w.split('\\')
+                                new_name = l_file.split('\\')
                                 new_name = new_name[-1]
 
                                 path = 'H:\\gw2_2\\wikiText\\zh\\items\\'
@@ -655,7 +607,7 @@ def processPageItems(mode):
                 # 没有id
                 else:
                     # print(w)
-                    new_name = w.split('\\')
+                    new_name = l_file.split('\\')
                     new_name = new_name[-1]
                     # 名字里是否包含 #
                     match = re.search('#', new_name)
@@ -665,13 +617,13 @@ def processPageItems(mode):
                             os.remove('H:\\gw2_2\\wikiText\\zh\\items no id\\' + new_name)
                     # 没有# 不是子页面
                     else:
-                        __ids = itemsProcessReturnID(_string, w)
+                        __ids = itemsProcessReturnID(content, l_file)
                         # 至少包含1个有效的id
                         if len(__ids) > 0:
                             for __id in __ids:
-                                string = _string
-                                string, name, name_s, hasBracket, bracket = itemsProcessString(string, w, data_dict,
-                                                                                               __id, False)
+                                string = content
+                                string, name, name_s, hasBracket, bracket = process_items_content(string, l_file, data_dict,
+                                                                                                  __id, False)
 
                                 # 删除
                                 if os.path.exists('H:\\gw2_2\\wikiText\\zh\\items no id\\' + new_name):
@@ -693,17 +645,17 @@ def processPageItems(mode):
                         # 一个id都没有
                         else:
                             __count2 += 1
-                            string, name, name_s, hasBracket, bracket = itemsProcessString(_string, w, data_dict, '',
-                                                                                           False)
+                            string, name, name_s, hasBracket, bracket = process_items_content(content, l_file, data_dict, '',
+                                                                                              False)
                             with open('H:\\gw2_2\\wikiText\\zh\\items no id\\' + new_name, 'w', encoding='utf8',
                                       newline='') as nnD:
                                 nnD.write(string)
                             print("]]]:", new_name, string)
             else:
                 __count3 += 1
-                new_name = w.split('\\')
+                new_name = l_file.split('\\')
                 new_name = new_name[-1]
-                string, name, name_s, hasBracket, bracket = itemsProcessString(_string, w, data_dict, '', False)
+                string, name, name_s, hasBracket, bracket = process_items_content(content, l_file, data_dict, '', False)
                 with open('H:\\gw2_2\\wikiText\\zh\\items historical\\' + new_name, 'w', encoding='utf8',
                           newline='') as hD:
                     hD.write(string)
@@ -1556,21 +1508,14 @@ def transLink(matched):
     return res
 
 
-def wikiLinks(string, _dict):
-    res, m = re.sub(r'\[\[([^\]]*)\]\]', transLink, string)
-
-    return res, m
-
-
 def wikiLinks2(string, _dict):
-    res = re.sub(r'\[\[([^\]]*)\]\]', transLink2, string)
+    res = re.sub(r'\[\[([^]]*)]]', transLink2, string)
 
     return res
 
 
-def wikiLinks3(string, _dict):
-    res = re.sub(r'\[\[([^\]]*)\]\]', transLink, string)
-
+def wikiLinks3(string):
+    res = re.sub(r'\[\[([^]]*)]]', transLink, string)
     return res
 
 
@@ -1822,150 +1767,6 @@ def redirect():
                 _target.save(text + '', summary="更新", bot=True)
 
 
-# 维护脚本 - 宠物技能
-def checkPetSkill():
-    site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', ' ')
-    p_list = []
-    getRawFile('H:\\gw2_2\\wikiText\\zh\\skill', p_list, 'WIKI')
-
-    for p in p_list:
-        with open(p, 'r', encoding='utf8', newline='') as W:
-            string = W.read()
-        match_pet = re.search(r'pet-family\s=', string)
-        if match_pet:
-            match = re.search(r'id\s+=([\s0-9,]*)', string)
-            if match:
-                _id = match.group(1).replace(' ', '')
-                _id = _id.replace('\n', '')
-                _id = _id.replace('\r', '')
-
-                suffix_match = re.search(r'specialization\s+=([\sa-zA-Z\',]*)', string)
-                if suffix_match:
-
-                    file = 'H:\\gw2_2\\data\\v2_skills\\v2_skills_' + str(_id) + '.json'
-                    if os.path.exists(file):
-                        with open(file, 'r', encoding='utf8', newline='') as D:
-                            data_dict = json.load(D)
-                        name = data_dict['name_zh']
-                        page_name = '技能/' + name + '(' + str(data_dict['id']) + ')'
-
-                        # pagename_old = '技能/' + name + '(soulbeast' + str(data_dict['id']) + ')'
-                        wpage = site.pages[page_name]
-
-                        # 处理h2、h3、h4
-                        string = headers(string)
-                        # 处理 infobox
-                        string = infoboxSkill(string)
-
-                        # sub description
-                        if 'description_zh' in data_dict:
-                            string = re.sub(r'description\s+=.*', 'description = ' + data_dict['description_zh'],
-                                            string)
-
-                        string = re.sub(r' ==', '==', string)
-                        string = '{{需要翻译}}' + string + '<!--1-->[[category:搬运页面]][[category:技能]][[category:魂兽师技能]]'
-
-                        if wpage.exists:
-                            print('pass:', page_name)
-                        else:
-                            wpage.save(string)
-                            print('update:', page_name)
-
-                        r_name = 'Skills/' + str(data_dict['id'])
-                        r_page = site.pages[r_name]
-
-                        r_page.save('#重定向 [[' + page_name + ']]', reason="修订宠物技能重定向")
-                        print('update direct:', 'Skills/' + str(data_dict['id']))
-
-
-def checkPetSkill2():
-    site = Site('gw2.huijiwiki.com')
-    site.login('报警机器人', ' ')
-    p_list = []
-    getRawFile('H:\\gw2_2\\wikiText\\zh\\skill', p_list, 'WIKI')
-
-    for p in p_list:
-        with open(p, 'r', encoding='utf8', newline='') as W:
-            string = W.read()
-        # 有id
-        match = re.search(r'id\s+=([\s0-9,]*)', string)
-        if match:
-            _id = match.group(1).replace(' ', '')
-            _id = _id.replace('\n', '')
-            _id = _id.replace('\r', '')
-
-            file = 'H:\\gw2_2\\data\\v2_skills\\v2_skills_' + str(_id) + '.json'
-            if os.path.exists(file):
-                with open(file, 'r', encoding='utf8', newline='') as D:
-                    data_dict = json.load(D)
-                name = data_dict['name_zh']
-                check_name = '技能/' + name
-                page_name = '技能/' + name + '(' + str(data_dict['id']) + ')'
-
-                wpage = site.pages[page_name]
-                cpage = site.pages[check_name]
-
-                if cpage.exists:
-                    cstring = cpage.text()
-                    match = re.search(r'id\s+=([\s0-9,]*)', cstring)
-                    if match:
-                        _cid = match.group(1).replace(' ', '')
-                        _cid = _cid.replace('\n', '')
-                        _cid = _cid.replace('\r', '')
-                        _cid = _cid.split(",")
-                        if str(data_dict['id']) not in _cid:
-                            # 处理h2、h3、h4
-                            string = headers(string)
-                            # 处理 infobox
-                            string = infoboxSkill(string)
-
-                            # sub description
-                            if 'description_zh' in data_dict:
-                                rpl = 'description = ' + data_dict['description_zh']
-                                string = re.sub(r'description\s+=.*', rpl, string)
-
-                            string = re.sub(r' ==', '==', string)
-                            string = '{{需要翻译}}' + string + '<!--1-->[[category:搬运页面]][[category:技能]]'
-
-                            if wpage.exists:
-                                match = re.search(r'\#重定向\s\[\[', string)
-
-                                if match:
-                                    wpage.save(string)
-                                    print('update:', page_name, _cid)
-                            else:
-                                wpage.save(string)
-                                print('create:', page_name, _cid)
-
-                            r_name = 'Skills/' + str(data_dict['id'])
-                            r_page = site.pages[r_name]
-
-                            r_page.save('#重定向 [[' + page_name + ']]', reason="修订宠物技能重定向")
-                            print('update direct:', 'Skills/' + str(data_dict['id']))
-
-                            """                
-                            old = site.pages[pagename_old]
-                            if old.exists:
-                                old.delete(reason="维护")
-                                """
-                            sleep(4)
-
-
-# 删除脚本
-def delete():
-    h_site = Site('gw2.huijiwiki.com')
-    h_site.login('报警机器人', ' ')
-    page = h_site.pages['template:infobox mount']  # 15509
-    e_pages = page.embeddedin(namespace=0)
-
-    for e in e_pages:
-        p = h_site.pages[e.name]
-        t = p.text()
-
-        p.delete(reason='维护')
-
-
 # 维护- 手动翻译中文wiki的指定页面并把新获得的生词加入自动翻译对照表
 def ManualTrans():
     page_list = [
@@ -2019,7 +1820,7 @@ def blog(mode):
         subcategory = subcategory_m.group(1)
 
     # id
-    id_match, matched_id = findID(_string)
+    id_match, matched_id = arena_find_id(_string)
     # isHistorical
     historical = re.search(r'\| status = historical', _string)
 
@@ -2058,7 +1859,7 @@ def blog(mode):
 
                         string = _string
                         # 处理链接
-                        string, name, name_s, hasBracket, bracket = itemsProcessString(string, w, data_dict, _id)
+                        string, name, name_s, hasBracket, bracket = process_items_content(string, w, data_dict, _id)
 
                         if 'name_zh' in data_dict:
                             pageName = data_dict['name_zh']
@@ -2107,21 +1908,21 @@ def blog(mode):
                     if len(__ids) > 0:
                         for __id in __ids:
                             string = _string
-                            string, name, name_s, hasBracket, bracket = itemsProcessString(string, w, data_dict,
-                                                                                           __id)
+                            string, name, name_s, hasBracket, bracket = process_items_content(string, w, data_dict,
+                                                                                              __id)
 
                             print(">>>:", __id, name, string)
                     # 一个id都没有
                     else:
 
-                        string, name, name_s, hasBracket, bracket = itemsProcessString(_string, w, data_dict, '')
+                        string, name, name_s, hasBracket, bracket = process_items_content(_string, w, data_dict, '')
 
                         print("]]]:", new_name, string)
         else:
 
             new_name = w.split('\\')
             new_name = new_name[-1]
-            string, name, name_s, hasBracket, bracket = itemsProcessString(_string, w, data_dict, '')
+            string, name, name_s, hasBracket, bracket = process_items_content(_string, w, data_dict, '')
 
 
 # processPage()
