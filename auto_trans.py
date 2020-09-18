@@ -258,7 +258,7 @@ def replace_region(matched):
         if _t[0] == ' ':
             l = len(_t)
             _t = _t[1:l]
-        hasMatch, trans = global_utils.look_up_known_dict(_t)
+        has_matched, trans = global_utils.look_up_known_dict(_t)
         res = f"region = {trans}"
         if text.index(t) != len(text) - 1:
             res = f"{res},"
@@ -308,48 +308,47 @@ def translate_inner_links(string, _dict):
     return res
 
 
-# TODO 下列任务未完成
-def checkPetSkill():
-    h_site = Site('gw2.huijiwiki.com')
-    h_site.login('报警机器人', '  ')
-
-    page = h_site.pages['template:infobox skill']  # 15509
-
-    e_pages = page.embeddedin(namespace=0)
-
-    _list = []
-    getRawFile('H:\\gw2_2\\wikiText\\en\\petSkill\\', _list, 'WIKI')
-
-    for e in e_pages:
-        e_page = h_site.pages[e.name]
+def update_pets_skills():
+    for e in global_utils.huiji_manager.get_page('template:infobox skill').embeddedin(namespace=0): # 15509
+        e_page = global_utils.huiji_manager.get_page(e.name)
         e_text = e_page.text()
-        match = re.search(r'pet-family\s\=\s', e_text)
-        if match:
-            _id = re.search(r'id\s\=\s([0-9]*)', e_text)
+        if re.search(r'pet-family\s=\s', e_text):
+            _id = re.search(r'id\s=\s([0-9]*)', e_text)
             if _id:
                 _id = _id.group(1)
-
-                for i in _list:
-                    with open(i, 'r', encoding='utf8', newline='') as W:
+                for l_file in global_utils.get_wiki_files(global_utils.get_path(["wikiText","en","petSkill"])):
+                    with open(l_file, 'r', encoding='utf8', newline='') as W:
                         string = W.read()
-                    _i_id = re.search(r'id\s\=\s([0-9]*)', string)
+                    _i_id = re.search(r'id\s=\s([0-9]*)', string)
                     if _i_id:
-                        _i_id = _i_id.group(1)
-                        print(_i_id)
-                        if _id == _i_id:
-                            name = i.split('\\')
-                            name = name[-1].replace('.wiki', '')
-
-                            name = name.replace('%2F', "/")
-                            name = name.replace('%3A', ":")
-                            name = name.replace('%2A', "*")
-                            name = name.replace('%3F', "?")
-                            name = name.replace('%22', '"')
-
-                            e_text = re.sub(r'name\s\=\s.*', r'name = ' + name, e_text)
-                            # print(e_text)
+                        if _id == _i_id.group(1):
+                            name = global_utils.get_standardized_name(l_file)
+                            e_text = re.sub(r'name\s=\s.*', r'name = ' + name, e_text)
                             e_page.save(e_text, summary='更新', bot=True)
                             print("update:", e.name)
+
+def update_pets_skills_local():
+    for zh_file in global_utils.get_wiki_files(global_utils.get_path(["wikiText","zh","petSkill"])):
+        with open(zh_file, 'r', encoding='utf8', newline='') as fs:
+            zh_content = fs.read()
+        zh_id = re.search(r'id\s=\s([0-9]*)', zh_content)
+        if zh_id:
+            _zh_id = zh_id.group(1)
+        zh_name = re.search(r'name\s=\s([\w\s\']*)', zh_content)
+        if zh_name:
+            zh_name = zh_name.group(1)
+        if not zh_name:
+            if zh_id:
+                for en_file in global_utils.get_wiki_files(global_utils.get_path(["wikiText","en","petSkill"])):
+                    with open(en_file, 'r', encoding='utf8', newline='') as fs:
+                        en_content = fs.read()
+                    en_id = re.search(r'id\s=\s([0-9]*)', en_content)
+                    if en_id:
+                        en_id = en_id.group(1)
+                        if zh_id == en_id:
+                            en_name = global_utils.get_standardized_name(en_file)
+                            zh_content = re.sub(r'{{infobox skill', '{{infobox skill\n| name = ' + en_name, zh_content)
+# TODO 下列任务未完成
 
 
 def getZH():
@@ -405,60 +404,7 @@ def getZH2():
                     pass
 
 
-def checkPetSkill2():
-    # 登陆网站
-    h_site = Site('gw2.huijiwiki.com')
-    h_site.login('报警机器人', '  ')
 
-    zh_list = []
-    # 从网站上down下来的所有petSkill页面
-    getRawFile('H:\\gw2_2\\wikiText\\zh\\petSkill\\', zh_list, 'WIKI')
-
-    en_list = []
-    getRawFile('H:\\gw2_2\\wikiText\\en\\petSkill\\', en_list, 'WIKI')
-
-    for zh_page in zh_list:
-        with open(zh_page, 'r', encoding='utf8', newline='') as Z:
-            zh_Text = Z.read()
-        _zh_id = re.search(r'id\s\=\s([0-9]*)', zh_Text)
-        if _zh_id:
-            _zh_id = _zh_id.group(1)
-        _zh_name = re.search(r'name\s\=\s([\w\s\']*)', zh_Text)
-        if _zh_name:
-            _zh_name = _zh_name.group(1)
-
-        fileName = zh_page.split('\\')
-        fileName = fileName[-1].replace('.wiki', '')
-
-        name_bracket = re.search(r'(\s\([\w\s\']*\))', fileName)
-        if name_bracket:
-            name_bracket = name_bracket.group(1)
-            # print('>>>>>>', name_bracket.group(1))
-
-        if not _zh_name:
-            if _zh_id:
-                for en_page in en_list:
-                    with open(en_page, 'r', encoding='utf8', newline='') as E:
-                        en_Text = E.read()
-                    _en_id = re.search(r'id\s\=\s([0-9]*)', en_Text)
-                    # 有 id
-                    if _en_id:
-                        _en_id = _en_id.group(1)
-
-                        if _zh_id == _en_id:
-                            en_name = en_page.split('\\')
-                            en_name = en_name[-1].replace('.wiki', '')
-                            en_name = en_name.replace('%2F', "/")
-                            en_name = en_name.replace('%3A', ":")
-                            en_name = en_name.replace('%2A', "*")
-                            en_name = en_name.replace('%3F', "?")
-                            en_name = en_name.replace('%22', '"')
-
-                            zh_Text = re.sub(r'\{\{infobox skill', '{{infobox skill\n| name = ' + en_name, zh_Text)
-
-                            # print(_zh_name, zh_Text)
-            else:
-                print(_zh_name, zh_Text)
 
 def checkTraitPage():
     data_list = []
