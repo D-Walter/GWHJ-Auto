@@ -11,6 +11,18 @@ _count = 0
 _match = 0
 
 
+
+def wikiLinks2(string, _dict):
+    res = re.sub(r'\[\[([^]]*)]]', transLink2, string)
+
+    return res
+
+
+def wikiLinks3(string):
+    res = re.sub(r'\[\[([^]]*)]]', transLink, string)
+    return res
+
+
 def transLink2(matched):
     s = matched.group(1)
     res = s
@@ -140,10 +152,8 @@ def headerLink(matched):
     }
     s = matched.group(2)
     s = s.replace(' ', '')
-
     if s in enums:
         res = enums[s]
-
     return matched.group(1) + ' ' + res + ' ' + matched.group(3)
 
 
@@ -169,18 +179,52 @@ def dialogueTrans2(matched):
     return matched.group(1) + res + '\n'
 
 
-repl_dict = {
-    "links": [r'\[\[([^]]*)]]', transLink2],
-    "headers": [r'(={2,4})\s*([\S]?)\s*(={2,4})', headerLink],
-    "dialogues1": [r'(<small>.*</small>)', ''],
-    "dialogues2": [r'\'\'(.*)\'\'', dialogueTrans],
-    "dialogues3": [r'(:{1,4})(.*)\n', dialogueTrans2],
-    "去空格": [r" ==", "=="],
-}
+# 翻译内链文字
+def transLink(matched):
+    s = matched.group(1)
+    m = False
+
+    strike = re.search(r'\|', s)
+    if strike is not None:
+        """
+        寻找|左边的内容
+        """
+        match = re.search(r'(.*)\|(.*)', s)
+        _l = match.group(1)
+        _r = match.group(2)
+        """
+        翻译
+        """
+        hasMatch1, tRes1 = checkTranslation(_l, _dict)
+        hasMatch2, tRes2 = checkTranslation(_r, _dict)
+        res = '[[' + tRes1 + '|' + tRes2 + ']]'
+        if hasMatch1:
+            m = True
+
+    else:
+        hasMatch, tRes = checkTranslation(s, _dict)
+        res = '[[' + tRes + ']]'
+        if hasMatch:
+            m = True
+            if s not in TRANS:
+                TRANS[s] = tRes
+
+    # print('matched:', matched, res)
+    return res
 
 
-# 将一个英文wiki界面标准化至灰机wiki标准
-def standardize_page(content: str, name: str) -> str:
+repl_dict = [
+    [r'\[\[([^]]*?)]]', transLink2],
+    [r'(={2,4})\s*([\S]?)\s*(={2,4})', headerLink],
+    [r'(<small>.*?</small>)', ''],
+    [r"''(.*)''", dialogueTrans],
+    [r'(:{1,4})(.*)\n', dialogueTrans2],
+    [r" ==", "=="],
+]
+
+
+# 将英文wiki界面的文本标准化至灰机wiki标准
+def standardize_page(content: str) -> str:
     for p_string, rep_func in repl_dict:
         content = re.sub(p_string, rep_func, content)
     return content
@@ -327,6 +371,7 @@ def update_pets_skills():
                             e_page.save(e_text, summary='更新', bot=True)
                             print("update:", e.name)
 
+
 def update_pets_skills_local():
     for zh_file in global_utils.get_wiki_files(global_utils.get_path(["wikiText","zh","petSkill"])):
         with open(zh_file, 'r', encoding='utf8', newline='') as fs:
@@ -360,6 +405,25 @@ def get_pets_skills_from_huiji():
                 with open(file, 'w', encoding='utf8') as fs:
                     fs.write(e_content)
                 print(file + '.wiki')
+
+
+# 通用，在arena的wiki页面中寻找【有效】id
+def arena_find_id(arena_content):
+    p = 0
+    match = re.search(r'(\n}})', arena_content, re.X)
+    if match is not None:
+        p = match.span(1)
+        p = p[0]
+    match = re.search(r'\| id\s+=([\s0-9,]*)', arena_content)
+    if match is not None:
+        p2 = match.span(1)
+        p2 = p2[0]
+        if p > p2:
+            return True, match.group(1)
+        else:
+            return False, 'fffff'
+    else:
+        return False, 'fffff'
 # TODO 下列任务未完成
 
 
@@ -378,7 +442,7 @@ def checkTraitPage():
         for e in en_list:
             with open(e, 'r', encoding='utf8', newline='') as E:
                 en_Text = E.read()
-            _en_id = re.search(r'id\s\=\s([0-9]*)', en_Text)
+            _en_id = re.search(r'id\s=\s([0-9]*)', en_Text)
             if _en_id:
                 _en_id = _en_id.group(1).replace(' ', '')
                 _en_id = _en_id.replace('\n', '')
@@ -400,7 +464,7 @@ def preprocessPageItems():
     sub_cat_list = []
     getRawFile('H:\\gw2_2\\wikiText\\en\\items', p_list, 'WIKI')
 
-    for w in p_list:
+    for w in global_utils.get_wiki_files(global_utils.get_path(['wikiText','en','items'])):
         with open(w, 'r', encoding='utf8', newline='') as W:
             string = W.read()
         subcategory = ''
@@ -413,25 +477,6 @@ def preprocessPageItems():
 
     with open('H:\\gw2_2\\preprocessItems.json', 'w', encoding='utf8') as F:
         F.write(json.dumps(sub_cat_list, ensure_ascii=False))
-
-
-# 通用，在arena的wiki页面中寻找【有效】id
-def arena_find_id(arena_content):
-    p = 0
-    match = re.search(r'(\n}})', arena_content, re.X)
-    if match is not None:
-        p = match.span(1)
-        p = p[0]
-    match = re.search(r'\| id\s+=([\s0-9,]*)', arena_content)
-    if match is not None:
-        p2 = match.span(1)
-        p2 = p2[0]
-        if p > p2:
-            return True, match.group(1)
-        else:
-            return False, 'fffff'
-    else:
-        return False, 'fffff'
 
 
 # 处理arena页面中物品相关
@@ -846,13 +891,7 @@ def processPageMountLisence(mode):
 
 # 处理arena页面-坐骑相关
 def processPageMount(mode):
-    pageNameSet = []
-    r_log = ''
-    p_log = ''
-    error = ''
     p_list = []
-    string = ''
-    header_s = set()
     getRawFile('H:\\gw2_2\\wikiText\\en\\mounts', p_list, 'WIKI')
     site = Site('gw2.huijiwiki.com')
     site.login('报警机器人', ' ')
@@ -1126,16 +1165,10 @@ def processPageSkills(mode):
 # 处理arena页面-物品的infobox
 def infoboxItems(string, path, _data, _id, hasID):
     # add infobox skill
-    string = re.sub(r'\{\{[\w]+ infobox', '{{infobox item', string)
+    string = re.sub(r'{{[\w]+ infobox', '{{infobox item', string)
 
     # 保留arena命名的英文名
-    name = path.split('\\')
-    name = name[-1].replace('.wiki', '')
-    name = name.replace('%2F', "/")
-    name = name.replace('%3A', ":")
-    name = name.replace('%2A', "*")
-    name = name.replace('%3F', "?")
-    name = name.replace('%22', '"')
+    name = global_utils.get_standardized_name(path)
 
     name_s = name
     hasBracket = False
@@ -1381,7 +1414,7 @@ def infoboxTrait(string, path, _data):
             string = re.sub(r'\{\{Trait infobox', '{{Trait infobox\n| display_name_zh = ' + res1, string)
 
     # remove interwiki
-    string = re.sub(r'\[\[[a-z]{2}\:.*\]\]', '', string)
+    string = re.sub(r'\[\[[a-z]{2}:.*]]', '', string)
     return string, name, name_s, hasBracket, bracket
 
 
@@ -1474,51 +1507,6 @@ def checkTranslation(string, _dict):
     return hasMatch, transRes
 
 
-# 翻译内链文字
-def transLink(matched):
-    s = matched.group(1)
-    m = False
-
-    strike = re.search(r'\|', s)
-    if strike is not None:
-        """
-        寻找|左边的内容
-        """
-        match = re.search(r'(.*)\|(.*)', s)
-        _l = match.group(1)
-        _r = match.group(2)
-        """
-        翻译
-        """
-        hasMatch1, tRes1 = checkTranslation(_l, _dict)
-        hasMatch2, tRes2 = checkTranslation(_r, _dict)
-        res = '[[' + tRes1 + '|' + tRes2 + ']]'
-        if hasMatch1:
-            m = True
-
-    else:
-        hasMatch, tRes = checkTranslation(s, _dict)
-        res = '[[' + tRes + ']]'
-        if hasMatch:
-            m = True
-            if s not in TRANS:
-                TRANS[s] = tRes
-
-    # print('matched:', matched, res)
-    return res
-
-
-def wikiLinks2(string, _dict):
-    res = re.sub(r'\[\[([^]]*)]]', transLink2, string)
-
-    return res
-
-
-def wikiLinks3(string):
-    res = re.sub(r'\[\[([^]]*)]]', transLink, string)
-    return res
-
-
 def skillPath():
     with open('H:\\gw2_2\\dict.txt', 'r', encoding='utf8', newline='') as D:
         name_dict = json.load(D)
@@ -1586,15 +1574,13 @@ def skillPath():
 
 
 # 处理kzw给的中英对照表
-def createDict():
-    j__path = 'H:\\gw2_2\\dict\\JSON\\'
-    c__path = 'H:\\gw2_2\\dict\\CSV\\'
+def createDict(key_list: list):
+    c__path = global_utils.get_path(['dict','csv'])
 
-    for c in _dict:
-        c__path_2 = c__path + 'trans_' + str(c) + '.csv'
-
-        if not os.path.exists(c__path_2):
-            with open(c__path_2, 'w', newline='', encoding='utf_8_sig') as Csv:
+    for c in key_list:
+        csv_file = os.path.join(c__path, f'trans_{str(c)}.csv')
+        if not os.path.exists(csv_file):
+            with open(csv_file, 'w', newline='', encoding='utf_8_sig') as Csv:
                 csv_header = ["en", "zh"]
                 writer = csv.DictWriter(Csv, fieldnames=csv_header)
 
