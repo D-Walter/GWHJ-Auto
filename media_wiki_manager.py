@@ -10,25 +10,26 @@ import global_utils
 
 
 class MediaWikiManager:
-    __account: str = None
-    __password: str = None
-    __site_service: Site = None
-    __operation_index: int = 0
-    __operation_mutex = threading.Lock()
-    __access_limitation: int = 5
-    __access_limitation_counter = 0
-    __access_limitation_duration = 3
-    __access_mutex = threading.Lock()
+    class PageDownloadThread(threading.Thread):
+        result = -1
+
+        def run(self):
+            self.result = 0
+            self.result = 1 if MediaWikiManager.download_single_page(self.tgt_page, self.to_folder) else 2
+
+        def __init__(self, tgt_page: Page, to_folder: str):
+            threading.Thread.__init__(self)
+            self.tgt_page = tgt_page
+            self.to_folder = to_folder
 
     @staticmethod
     def download_single_page(tgt_page: Page, to_folder: str) -> bool:
         file = os.path.join(to_folder,
                             global_utils.get_ascii_name(f"{global_utils.get_standardized_name(tgt_page.name)}.wiki"))
-        print(file)
         if not tgt_page.exists:
             return False
         if not os.path.exists(to_folder):
-            os.makedirs(to_folder)
+            os.makedirs(to_folder, 775)
         if os.path.exists(file):
             os.remove(file)
         with open(file, 'w+', encoding='utf8') as f:
@@ -40,17 +41,16 @@ class MediaWikiManager:
     # 返回一个(int,list)元组，分别对应成功页面数和失败页面名列表
     def download_all_pages_in_categories(self, categories: list, to_folder: str, force_refresh_list: bool = False) -> (
             int, list):
-        tgt_folder = os.path.join(to_folder)
-        list_local_file = os.path.join(tgt_folder, f"{to_folder.split(os.sep)[-1]}.txt")
+        list_local_file = os.path.join(to_folder, f"{to_folder.split(os.sep)[-1]}.txt")
         pages_not_exist = []
         if force_refresh_list or not os.path.exists(list_local_file):
-            if not os.path.exists(tgt_folder):
-                os.makedirs(tgt_folder)
+            if not os.path.exists(to_folder):
+                os.makedirs(to_folder)
             with open(list_local_file, 'w+', encoding='utf8') as F:
                 for _page in self.get_elements_in_categories(categories):
                     F.write(f"{_page.name}\n")
                     F.flush()
-                    if not self.download_single_page(_page, tgt_folder):
+                    if not self.download_single_page(_page, to_folder):
                         pages_not_exist.append(_page.name)
                         continue
         else:
@@ -58,13 +58,31 @@ class MediaWikiManager:
                 while F.readable():
                     line_content = F.readline()
                     _page = global_utils.arena_manager.get_page(line_content)
-                    if not self.download_single_page(_page, tgt_folder):
+                    if not self.download_single_page(_page, to_folder):
                         pages_not_exist.append(_page.name)
                         continue
 
+    def download_all_pages_concurrency(self, pages_names: list, to_folder: str) -> (int, list):
+        threads = []
+        for page_name in pages_names:
+            p = self.get_page(page_name)
+            file = os.path.join(to_folder,
+                                global_utils.get_ascii_name(f"{global_utils.get_standardized_name(p.name)}.wiki"))
+            t = MediaWikiManager.PageDownloadThread(p,file)
+            threads.append(t)
+            t.start()
+        for t in threads:
+            t.join()
+        success_counter = 0
+        failed_list = []
+        for t in threads:
+            if t.result == 1:
+                success_counter += 1
+            else:
+                failed_list.append(t.tgt_page.name)
+        return success_counter, failed_list
+
     def download_all_pages(self, pages_names: list, to_folder: str) -> (int, list):
-        if not os.path.exists(to_folder):
-            os.makedirs(to_folder, 775)
         page_counter = 0
         pages_not_exist = []
         for page_name in pages_names:
@@ -113,6 +131,9 @@ class MediaWikiManager:
     def delete_page(self, page_name: str, reason: str = "BOT AUTO", sender="UNKNOWN") -> bool:
         return self.__operate_page__('DELETE', page_name, reason=reason, sender=sender) is not None
 
+    __operation_index: int = 0
+    __operation_mutex = threading.Lock()
+
     def __get_cur_operation_index__(self) -> int:
         self.__operation_mutex.acquire()
         ret = self.__operation_index
@@ -126,6 +147,11 @@ class MediaWikiManager:
         self.__operation_mutex.release()
         return ret
 
+    __access_limitation: int = 5
+    __access_limitation_counter = 0
+    __access_limitation_duration = 3
+    __access_mutex = threading.Lock()
+
     def __get_access_rate__(self) -> str:
         self.__access_mutex.acquire()
         ret = self.__access_limitation_counter / self.__access_limitation_duration
@@ -133,22 +159,24 @@ class MediaWikiManager:
         return f"{self.__access_limitation_counter}/{self.__access_limitation_duration}:{ret}"
 
     def __ask_for_access__(self):
+        def __minus_access_counter__():
+            self.__access_mutex.acquire()
+            self.__access_limitation_counter -= 1
+            self.__access_mutex.release()
+
         self.__access_mutex.acquire()
         while (
                 self.__access_limitation_counter / self.__access_limitation_duration) >= self.__access_limitation:
             sleep(0.02)
         self.__access_limitation_counter += 1
         self.__access_mutex.release()
-        threading.Timer(self.__access_limitation_duration, self.__minus_access_counter__).start()
-
-    def __minus_access_counter__(self):
-        self.__access_mutex.acquire()
-        self.__access_limitation_counter -= 1
-        self.__access_mutex.release()
+        threading.Timer(self.__access_limitation_duration, __minus_access_counter__).start()
 
     def __write_log__(self, message):
         global_utils.write_log(
             f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}][{'ONLINE' if self.__site_service.logged_in else 'OFFLINE'}]{message}")
+
+    __site_service: Site = None
 
     def __get_site_service__(self, sender='UNKNOWN', need_logged=True) -> Site:
         if need_logged and not self.__site_service.logged_in:
@@ -236,6 +264,9 @@ class MediaWikiManager:
             self.__write_log__(
                 f"{operation_details_text} failed[{result}]")
         return tgt_page
+
+    __account: str = None
+    __password: str = None
 
     def __init__(self, account, password, host):
         self.__account = account
