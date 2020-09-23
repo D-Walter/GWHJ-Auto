@@ -15,12 +15,13 @@ class MediaWikiManager:
 
         def run(self):
             self.result = 0
-            self.result = 1 if MediaWikiManager.download_single_page(self.tgt_page, self.to_folder) else 2
+            self.result = 1 if self.owner.download_single_page_by_name(self.page_name, self.to_folder) else 2
 
-        def __init__(self, tgt_page: Page, to_folder: str):
+        def __init__(self, page_name: str, to_folder: str, owner):
             threading.Thread.__init__(self)
-            self.tgt_page = tgt_page
+            self.page_name = page_name
             self.to_folder = to_folder
+            self.owner = owner
 
     @staticmethod
     def download_single_page(tgt_page: Page, to_folder: str) -> bool:
@@ -35,6 +36,10 @@ class MediaWikiManager:
         with open(file, 'w+', encoding='utf8') as f:
             f.write(tgt_page.text())
         return True
+
+    def download_single_page_by_name(self, page_name: str, to_folder: str) -> bool:
+        p = self.get_page(page_name)
+        return MediaWikiManager.download_single_page(p, to_folder)
 
     # 将列表categories下所有页面下载到to_folder路径，请注意，to_folder路径是以global_utils.settings["local_wiki_root_path"]为根目录的相对路径
     # categories会被各自写入与to_folder最低级路径相同名的txt文件中。若文件已存在，则会尝试读取该文件，只有当force_refresh_list为True时才会忽视本地文件重新下载
@@ -62,16 +67,35 @@ class MediaWikiManager:
                         pages_not_exist.append(_page.name)
                         continue
 
+    def download_all_pages_in_categories_concurrency(self, categories: list, to_folder: str,
+                                                     force_refresh_list: bool = False) -> (int, list):
+        list_local_file = os.path.join(to_folder, f"{to_folder.split(os.sep)[-1]}.txt")
+        if force_refresh_list or not os.path.exists(list_local_file):
+            self.download_all_pages_in_categories(categories, to_folder, True)
+        else:
+            threads = []
+            with open(list_local_file, 'r', encoding='utf8') as F:
+                while F.readable():
+                    line_content = F.readline()
+                    t = MediaWikiManager.PageDownloadThread(self.get_page(line_content), to_folder)
+                    threads.append(t)
+                    t.start()
+                    t.join()
+            success_counter = 0
+            failed_list = []
+            for t in threads:
+                if t.result == 1:
+                    success_counter += 1
+                else:
+                    failed_list.append(t.page_name)
+            return success_counter, failed_list
+
     def download_all_pages_concurrency(self, pages_names: list, to_folder: str) -> (int, list):
         threads = []
         for page_name in pages_names:
-            p = self.get_page(page_name)
-            file = os.path.join(to_folder,
-                                global_utils.get_ascii_name(f"{global_utils.get_standardized_name(p.name)}.wiki"))
-            t = MediaWikiManager.PageDownloadThread(p,file)
+            t = MediaWikiManager.PageDownloadThread(page_name, to_folder, self)
             threads.append(t)
             t.start()
-        for t in threads:
             t.join()
         success_counter = 0
         failed_list = []
@@ -79,17 +103,14 @@ class MediaWikiManager:
             if t.result == 1:
                 success_counter += 1
             else:
-                failed_list.append(t.tgt_page.name)
+                failed_list.append(t.page_name)
         return success_counter, failed_list
 
     def download_all_pages(self, pages_names: list, to_folder: str) -> (int, list):
         page_counter = 0
         pages_not_exist = []
         for page_name in pages_names:
-            p = self.get_page(page_name)
-            file = os.path.join(to_folder,
-                                global_utils.get_ascii_name(f"{global_utils.get_standardized_name(p.name)}.wiki"))
-            if MediaWikiManager.download_single_page(p, file):
+            if self.download_single_page_by_name(page_name, to_folder):
                 page_counter += 1
             else:
                 pages_not_exist.append(page_name)
@@ -101,7 +122,8 @@ class MediaWikiManager:
         c_list = categories_names[:]
         while len(c_list) >= 1:
             self.__ask_for_access__()
-            operation_details_text = f"OPERATION[GET] to CATEGORY[{c_list[0]}] from USER[{sender}](OI[{my_operation_index}])"
+            operation_details_text = f"OPERATION[GET] to CATEGORY[{c_list[0]}] from USER[{sender}]" \
+                                     f"(OI[{my_operation_index}])"
             try:
                 category_pointer = site_service.categories[c_list[0]]
             except Exception as e:
@@ -174,7 +196,8 @@ class MediaWikiManager:
 
     def __write_log__(self, message):
         global_utils.write_log(
-            f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}][{'ONLINE' if self.__site_service.logged_in else 'OFFLINE'}]{message}")
+            f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}]"
+            f"[{'ONLINE' if self.__site_service.logged_in else 'OFFLINE'}]{message}")
 
     __site_service: Site = None
 
@@ -187,11 +210,11 @@ class MediaWikiManager:
 
     def __operate_page__(self, operation_type: str, page_name: str, content: str = None, summary: str = "BOT AUTO",
                          reason: str = "BOT AUTO",
-                         retry_times: int = 10, retry_interval: int = 30, sender: str = "UNKNOWN") -> Page or None:
+                         retry_times: int = 10, retry_interval: int = 30, sender: str = "UNKNOWN") -> Page:
         my_operation_index = self.__ask_for_operation_index__()
         site_service = self.__get_site_service__(f'OPERATION[{operation_type}] from USER[{sender}]',
                                                  operation_type != 'GET')
-        tgt_page = None
+        tgt_page: Page = None
 
         def update_page():
             nonlocal tgt_page, page_name
@@ -199,7 +222,7 @@ class MediaWikiManager:
             tgt_page = site_service.pages[page_name]
             if not tgt_page.exists:
                 tgt_page = None
-                return f'Page "{page_name}" doesn\'t exist'
+                return f'Page "{page_name}" doesnt exist'
             else:
                 tgt_page.save(content, summary=summary, bot=True)
 
@@ -224,7 +247,7 @@ class MediaWikiManager:
             tgt_page = site_service.pages[page_name]
             if not tgt_page.exists:
                 tgt_page = None
-                return f'Page "{page_name}" doesn\'t exist'
+                return f'Page "{page_name}" doesnt exist'
             else:
                 tgt_page.delete(reason=reason)
 
@@ -252,7 +275,8 @@ class MediaWikiManager:
             'DELETE': delete_page,
             'UPDATE': update_page
         }
-        operation_details_text = f"OPERATION[{operation_type}] to PAGE[{page_name}] from USER[{sender}](OI[{my_operation_index}])"
+        operation_details_text = f"OPERATION[{operation_type}] to PAGE[{page_name}] from USER[{sender}]" \
+                                 f"(OI[{my_operation_index}])"
         result = __try_doing__(page_operations_funcs[operation_type],
                                lambda e, c: self.__write_log__(
                                    f"{operation_details_text} failed, this is the {c}th failure(s)"
